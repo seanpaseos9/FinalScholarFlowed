@@ -31,7 +31,7 @@ export const INITIAL_SCHOLARSHIPS: Scholarship[] = [
     description: 'Premier institutional merit fellowship awarded to high-achieving undergraduate and graduate students demonstrating outstanding scholarship and academic rigor.',
     category: 'Academic',
     slots: 25,
-    slots_remaining: 8,
+    slots_remaining: 24, // 1 applied (Julian Vance - app-001)
     grant_amount: 90000,
     grant_type: '100% Tuition & Comprehensive Fee Waiver + ₱15,000 Term Stipend',
     min_gwa: 1.50,
@@ -54,7 +54,7 @@ export const INITIAL_SCHOLARSHIPS: Scholarship[] = [
     description: 'Competitive research and technology grant designated for students pursuing computer science, software engineering, robotics, data science, and applied mathematics.',
     category: 'Industry',
     slots: 15,
-    slots_remaining: 5,
+    slots_remaining: 13, // 2 applied (Marcus Santos - app-003, Patricia Chen - app-004)
     grant_amount: 85000,
     grant_type: '₱85,000 Tuition Credit + Research Lab Allowance',
     min_gwa: 1.75,
@@ -76,7 +76,7 @@ export const INITIAL_SCHOLARSHIPS: Scholarship[] = [
     description: 'Need-based financial aid program dedicated to assisting dedicated students facing economic hardship to complete their academic degrees uninterrupted.',
     category: 'Financial',
     slots: 50,
-    slots_remaining: 18,
+    slots_remaining: 49, // 1 applied (Samantha Reyes - app-002)
     grant_amount: 50000,
     grant_type: '₱50,000 / Term Direct Academic Tuition Assistance',
     min_gwa: 2.50,
@@ -99,7 +99,7 @@ export const INITIAL_SCHOLARSHIPS: Scholarship[] = [
     description: 'Merit scholarship supporting proactive student leaders who drive positive community impact, sustainability initiatives, and ethical student governance.',
     category: 'Leadership',
     slots: 20,
-    slots_remaining: 11,
+    slots_remaining: 20, // 0 applied
     grant_amount: 65000,
     grant_type: '₱65,000 Annual Leadership Grant + Mentorship Stipend',
     min_gwa: 2.00,
@@ -121,7 +121,7 @@ export const INITIAL_SCHOLARSHIPS: Scholarship[] = [
     description: 'Awarded to competitive student athletes and collegiate varsity players representing the institution in regional and national athletic championships.',
     category: 'Athletic',
     slots: 30,
-    slots_remaining: 14,
+    slots_remaining: 29, // 1 applied (Gabriel Mendoza - app-005)
     grant_amount: 55000,
     grant_type: '100% Tuition Grant + Athletic Gear & Training Allowance',
     min_gwa: 2.75,
@@ -143,7 +143,7 @@ export const INITIAL_SCHOLARSHIPS: Scholarship[] = [
     description: 'Sponsored creative scholarship for emerging talents in architecture, digital design, multimedia arts, and communication technology.',
     category: 'Alumni',
     slots: 12,
-    slots_remaining: 4,
+    slots_remaining: 12, // 0 applied
     grant_amount: 60000,
     grant_type: '₱60,000 Creative Software & Materials Grant',
     min_gwa: 2.00,

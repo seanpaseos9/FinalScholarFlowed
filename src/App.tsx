@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { PortalSelection } from './components/portal/PortalSelection';
@@ -66,6 +66,41 @@ export default function App() {
   const [freezePeriods, setFreezePeriods] = useState<FreezePeriod[]>([]);
   const [interviews, setInterviews] = useState<InterviewSchedule[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+
+  /**
+   * Computes remaining scholarship slots accurately based on the actual recorded
+   * student applications in the database (active non-rejected applications).
+   */
+  const calculateRemainingSlots = (scholarship: Scholarship, allApps: Application[]): number => {
+    const activeCount = allApps.filter(
+      (app) =>
+        (app.scholarship_id === scholarship.id || app.scholarship_title === scholarship.title) &&
+        app.status !== 'Rejected'
+    ).length;
+    return Math.max(0, scholarship.slots - activeCount);
+  };
+
+  // Derive real-time accurate scholarships where slots_remaining is dynamically
+  // synchronized with the exact number of active student applications recorded in the database.
+  const accurateScholarships = useMemo(() => {
+    return scholarships.map((sch) => ({
+      ...sch,
+      slots_remaining: calculateRemainingSlots(sch, applications),
+    }));
+  }, [scholarships, applications]);
+
+  // Self-healing synchronization: automatically repair any out-of-sync slot counts in the database
+  useEffect(() => {
+    if (scholarships.length > 0 && applications.length > 0) {
+      scholarships.forEach((sch) => {
+        const accurate = calculateRemainingSlots(sch, applications);
+        if (sch.slots_remaining !== accurate) {
+          const repaired = { ...sch, slots_remaining: accurate };
+          syncSaveScholarship(repaired).catch(() => {});
+        }
+      });
+    }
+  }, [scholarships, applications]);
 
   // Initialize and connect live Cloud Firestore listeners & backend data sync on mount
   useEffect(() => {
@@ -183,20 +218,22 @@ export default function App() {
     }
 
     // 2. Immediately reflect on frontend state (Optimistic update)
-    setApplications((prev) => [newApp, ...prev.filter((a) => a.id !== newApp.id)]);
+    const nextApplications = [newApp, ...applications.filter((a) => a.id !== newApp.id)];
+    setApplications(nextApplications);
 
-    // 3. Decrement slot count for target scholarship
+    // 3. Update slot count for target scholarship accurately based on actual recorded applications
     const targetSch = scholarships.find(s => s.id === newApp.scholarship_id || s.title === newApp.scholarship_title);
-    if (targetSch && targetSch.slots_remaining > 0) {
+    if (targetSch) {
+      const updatedRemaining = calculateRemainingSlots(targetSch, nextApplications);
       const updatedSch = {
         ...targetSch,
-        slots_remaining: Math.max(0, targetSch.slots_remaining - 1)
+        slots_remaining: updatedRemaining,
       };
       setScholarships((prev) => prev.map(s => s.id === targetSch.id ? updatedSch : s));
       try {
         await syncSaveScholarship(updatedSch);
       } catch (err) {
-        console.error('Failed to sync slot decrement:', err);
+        console.error('Failed to sync slot count update:', err);
       }
     }
 
@@ -214,9 +251,23 @@ export default function App() {
 
   // Staff Actions: Edit & Delete Application (Completely recorded on Frontend, Backend API, and Cloud Firestore)
   const handleUpdateApplicationFromStaff = async (updatedApp: Application) => {
-    setApplications((prev) =>
-      prev.map((a) => (a.id === updatedApp.id ? updatedApp : a))
+    const nextApps = applications.map((a) => (a.id === updatedApp.id ? updatedApp : a));
+    setApplications(nextApps);
+
+    // If application status changed (e.g. to or from Rejected), update the scholarship's slot count
+    const targetSch = scholarships.find(
+      (s) => s.id === updatedApp.scholarship_id || s.title === updatedApp.scholarship_title
     );
+    if (targetSch) {
+      const updatedRemaining = calculateRemainingSlots(targetSch, nextApps);
+      if (targetSch.slots_remaining !== updatedRemaining) {
+        const updatedSch = { ...targetSch, slots_remaining: updatedRemaining };
+        setScholarships((prev) => prev.map((s) => (s.id === targetSch.id ? updatedSch : s)));
+        syncSaveScholarship(updatedSch).catch((err) =>
+          console.error('Failed to sync slot count on application update:', err)
+        );
+      }
+    }
 
     try {
       await syncUpdateApplication(updatedApp);
@@ -231,26 +282,26 @@ export default function App() {
     const appToDelete = applications.find((a) => a.id === id);
 
     // Optimistically remove from UI immediately
-    setApplications((prev) => prev.filter((a) => a.id !== id));
+    const nextApps = applications.filter((a) => a.id !== id);
+    setApplications(nextApps);
 
-    // Slot restoration: must run BEFORE syncDeleteApplication to ensure the
-    // Firestore snapshot update from deletion doesn't race-overwrite the slot count.
+    // Slot restoration: based on accurate remaining applications
     if (appToDelete) {
       const targetSch = scholarships.find(
         (s) => s.id === appToDelete.scholarship_id || s.title === appToDelete.scholarship_title
       );
       if (targetSch) {
-        const restoredSlots = Math.min(targetSch.slots, targetSch.slots_remaining + 1);
+        const restoredRemaining = calculateRemainingSlots(targetSch, nextApps);
         const updatedSch = {
           ...targetSch,
-          slots_remaining: restoredSlots,
+          slots_remaining: restoredRemaining,
         };
         // Update local state first
         setScholarships((prev) => prev.map((s) => (s.id === targetSch.id ? updatedSch : s)));
         try {
           // Persist restored slot count to both backend and Firestore
           await syncSaveScholarship(updatedSch);
-          logEvent('Info', 'Scholarship', `Slot restored for "${targetSch.title}": ${targetSch.slots_remaining} → ${restoredSlots} (after application deletion)`);
+          logEvent('Info', 'Scholarship', `Slot restored for "${targetSch.title}": ${targetSch.slots_remaining} → ${restoredRemaining} (after application deletion)`);
         } catch (err) {
           console.error('Failed to sync restored slot count:', err);
         }
@@ -297,15 +348,20 @@ export default function App() {
 
   // Admin Actions: Add, Edit, Delete Scholarship
   const handleSaveScholarshipFromAdmin = async (sch: Scholarship) => {
-    const isNew = !scholarships.some((s) => s.id === sch.id);
+    const accurateRemaining = calculateRemainingSlots(sch, applications);
+    const normalizedSch: Scholarship = {
+      ...sch,
+      slots_remaining: accurateRemaining,
+    };
+    const isNew = !scholarships.some((s) => s.id === normalizedSch.id);
     setScholarships((prev) => {
-      const exists = prev.some((s) => s.id === sch.id);
-      return exists ? prev.map((s) => (s.id === sch.id ? sch : s)) : [sch, ...prev];
+      const exists = prev.some((s) => s.id === normalizedSch.id);
+      return exists ? prev.map((s) => (s.id === normalizedSch.id ? normalizedSch : s)) : [normalizedSch, ...prev];
     });
 
     try {
-      await syncSaveScholarship(sch);
-      logEvent('System', 'Scholarship', `Scholarship ${isNew ? 'created' : 'updated'}: "${sch.title}" (${sch.code}) — Slots: ${sch.slots}, Grant: ₱${sch.grant_amount.toLocaleString()}`);
+      await syncSaveScholarship(normalizedSch);
+      logEvent('System', 'Scholarship', `Scholarship ${isNew ? 'created' : 'updated'}: "${normalizedSch.title}" (${normalizedSch.code}) — Slots: ${normalizedSch.slots}, Remaining: ${normalizedSch.slots_remaining}, Grant: ₱${normalizedSch.grant_amount.toLocaleString()}`);
     } catch (err) {
       console.error('Failed to save scholarship to backend/Firestore:', err);
     }
@@ -417,7 +473,7 @@ export default function App() {
 
         {currentView === 'student' && (
           <StudentPortal
-            scholarships={scholarships}
+            scholarships={accurateScholarships}
             applications={applications}
             freezePeriods={freezePeriods}
             onNewApplication={handleNewApplication}
@@ -434,7 +490,7 @@ export default function App() {
         {currentView === 'staff' && activeUser && (
           <StaffPanel
             user={activeUser}
-            scholarships={scholarships}
+            scholarships={accurateScholarships}
             applications={applications}
             freezePeriods={freezePeriods}
             interviews={interviews}
@@ -449,7 +505,7 @@ export default function App() {
           <AdminDashboard
             user={activeUser}
             users={users}
-            scholarships={scholarships}
+            scholarships={accurateScholarships}
             applications={applications}
             onSaveScholarship={handleSaveScholarshipFromAdmin}
             onDeleteScholarship={handleDeleteScholarshipFromAdmin}

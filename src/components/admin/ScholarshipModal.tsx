@@ -18,8 +18,15 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
   const [code, setCode] = useState(scholarshipToEdit?.code || `SCH-${Math.floor(100 + Math.random() * 900)}-2026`);
   const [category, setCategory] = useState<ScholarshipCategory>(scholarshipToEdit?.category || 'Academic');
   const [description, setDescription] = useState(scholarshipToEdit?.description || '');
+  const occupiedSlots = scholarshipToEdit
+    ? Math.max(0, scholarshipToEdit.slots - scholarshipToEdit.slots_remaining)
+    : 0;
   const [slots, setSlots] = useState<number>(scholarshipToEdit?.slots || 20);
-  const [slotsRemaining, setSlotsRemaining] = useState<number>(scholarshipToEdit?.slots_remaining || 20);
+  const [slotsRemaining, setSlotsRemaining] = useState<number>(
+    scholarshipToEdit?.slots_remaining !== undefined
+      ? scholarshipToEdit.slots_remaining
+      : 20
+  );
   const [grantAmount, setGrantAmount] = useState<number>(scholarshipToEdit?.grant_amount || 50000);
   const [grantType, setGrantType] = useState(scholarshipToEdit?.grant_type || '100% Tuition Discount');
   const [minGwa, setMinGwa] = useState<number>(scholarshipToEdit?.min_gwa || 1.75);
@@ -43,7 +50,7 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
       category,
       description: description.trim(),
       slots: Number(slots) || 1,
-      slots_remaining: Number(slotsRemaining) || Number(slots) || 1,
+      slots_remaining: Math.max(0, (Number(slots) || 1) - occupiedSlots),
       grant_amount: Number(grantAmount) || 0,
       grant_type: grantType.trim(),
       min_gwa: Number(minGwa) || 2.0,
@@ -156,14 +163,22 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Total Slots</label>
+              <label className="flex items-center justify-between font-bold text-slate-700 mb-1">
+                <span>Total Slots</span>
+                {occupiedSlots > 0 && (
+                  <span className="text-[11px] font-normal text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                    {occupiedSlots} applied • {Math.max(0, (Number(slots) || 1) - occupiedSlots)} left
+                  </span>
+                )}
+              </label>
               <input
                 type="number"
+                min={Math.max(1, occupiedSlots)}
                 value={slots}
                 onChange={e => {
                   const s = parseInt(e.target.value) || 1;
                   setSlots(s);
-                  setSlotsRemaining(s);
+                  setSlotsRemaining(Math.max(0, s - occupiedSlots));
                 }}
                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none"
               />
