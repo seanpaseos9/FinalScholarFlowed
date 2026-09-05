@@ -38,10 +38,27 @@ import {
 } from './lib/dataSync';
 import { Scholarship, Application, FreezePeriod, UserProfile, InterviewSchedule } from './types';
 import { checkDuplicateApplication } from './lib/duplicateCheck';
+import { logEvent } from './lib/logger';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'portal' | 'student' | 'login' | 'staff' | 'admin'>('portal');
-  const [activeUser, setActiveUser] = useState<UserProfile | null>(null);
+  const [activeUser, setActiveUser] = useState<UserProfile | null>(() => getStoredActiveUser());
+  const [currentView, setCurrentView] = useState<'portal' | 'student' | 'login' | 'staff' | 'admin'>(() => {
+    const user = getStoredActiveUser();
+    const storedView = localStorage.getItem('scholarflow_current_view') as any;
+    if (user) {
+      if (storedView === 'admin' || storedView === 'staff') return storedView;
+      return user.role === 'admin' ? 'admin' : 'staff';
+    }
+    if (storedView === 'student' || storedView === 'portal' || storedView === 'login') {
+      return storedView;
+    }
+    return 'portal';
+  });
+
+  const changeView = (view: 'portal' | 'student' | 'login' | 'staff' | 'admin') => {
+    setCurrentView(view);
+    localStorage.setItem('scholarflow_current_view', view);
+  };
 
   // Live Cloud Firestore Data State
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
@@ -56,8 +73,19 @@ export default function App() {
     setActiveUser(loadedUser);
 
     if (loadedUser) {
-      if (loadedUser.role === 'admin') setCurrentView('admin');
-      else if (loadedUser.role === 'staff') setCurrentView('staff');
+      const storedView = localStorage.getItem('scholarflow_current_view');
+      // Session persistence fix: only restore valid views for the user's role.
+      // Admin can access 'admin'. Staff can access 'staff'. Both are valid stored views.
+      // Do NOT force-overwrite a valid stored view on refresh.
+      const isValidAdminView = storedView === 'admin' && loadedUser.role === 'admin';
+      const isValidStaffView = storedView === 'staff';
+      if (isValidAdminView || isValidStaffView) {
+        setCurrentView(storedView as any);
+      } else {
+        const defaultView = loadedUser.role === 'admin' ? 'admin' : 'staff';
+        setCurrentView(defaultView);
+        localStorage.setItem('scholarflow_current_view', defaultView);
+      }
     }
 
     // Automatically seed Cloud Firestore database if collections are empty
@@ -101,7 +129,6 @@ export default function App() {
     // Real-time synchronization of faculty, staff, and professor accounts from Cloud Firestore
     const unsubUsers = subscribeUsers((list) => {
       setUsers(list);
-      // If active user is logged in, automatically reflect any changes made to their profile in Cloud Firestore!
       setActiveUser((prev) => {
         if (!prev) return null;
         const freshUser = list.find((u) => u.id === prev.id);
@@ -122,20 +149,23 @@ export default function App() {
     };
   }, []);
 
-  // Auth Callbacks
   const handleLoginSuccess = (user: UserProfile) => {
     setActiveUser(user);
-    if (user.role === 'admin') {
-      setCurrentView('admin');
-    } else {
-      setCurrentView('staff');
-    }
+    saveStoredActiveUser(user);
+    const targetView = user.role === 'admin' ? 'admin' : 'staff';
+    changeView(targetView);
+    logEvent('Security', 'Authentication', `User signed in: ${user.full_name} (${user.email}) — Role: ${user.role}`);
   };
 
   const handleLogout = () => {
+    const currentUser = activeUser;
     setActiveUser(null);
     saveStoredActiveUser(null);
+    localStorage.removeItem('scholarflow_current_view');
     setCurrentView('portal');
+    if (currentUser) {
+      logEvent('Security', 'Authentication', `User signed out: ${currentUser.full_name} (${currentUser.email})`);
+    }
   };
 
   // Student Actions: Add Application (Completely recorded on Frontend, Backend API, and Cloud Firestore)
@@ -155,20 +185,26 @@ export default function App() {
     // 2. Immediately reflect on frontend state (Optimistic update)
     setApplications((prev) => [newApp, ...prev.filter((a) => a.id !== newApp.id)]);
 
-    // Decrement slot count in frontend state
-    const targetSch = scholarships.find((s) => s.id === newApp.scholarship_id);
+    // 3. Decrement slot count for target scholarship
+    const targetSch = scholarships.find(s => s.id === newApp.scholarship_id || s.title === newApp.scholarship_title);
     if (targetSch && targetSch.slots_remaining > 0) {
-      const updatedSch = { ...targetSch, slots_remaining: targetSch.slots_remaining - 1 };
-      setScholarships((prev) => prev.map((s) => (s.id === targetSch.id ? updatedSch : s)));
-      syncSaveScholarship(updatedSch).catch((err) => console.warn('Slot update notice:', err));
+      const updatedSch = {
+        ...targetSch,
+        slots_remaining: Math.max(0, targetSch.slots_remaining - 1)
+      };
+      setScholarships((prev) => prev.map(s => s.id === targetSch.id ? updatedSch : s));
+      try {
+        await syncSaveScholarship(updatedSch);
+      } catch (err) {
+        console.error('Failed to sync slot decrement:', err);
+      }
     }
 
-    // 3. Persist to Backend REST API & Cloud Firestore Database
     try {
       await syncCreateApplication(newApp);
+      logEvent('Info', 'Application', `New application submitted: ${newApp.reference_code} — ${newApp.first_name} ${newApp.last_name} for "${newApp.scholarship_title}"`);
     } catch (err: any) {
       console.error('Failed to sync application to backend/database:', err);
-      // Revert frontend state if duplicate rejection from backend
       if (err?.message?.includes('already applied')) {
         setApplications((prev) => prev.filter((a) => a.id !== newApp.id));
         throw err;
@@ -178,24 +214,50 @@ export default function App() {
 
   // Staff Actions: Edit & Delete Application (Completely recorded on Frontend, Backend API, and Cloud Firestore)
   const handleUpdateApplicationFromStaff = async (updatedApp: Application) => {
-    // Immediately reflect on frontend state
     setApplications((prev) =>
       prev.map((a) => (a.id === updatedApp.id ? updatedApp : a))
     );
 
-    // Persist to Backend REST API & Cloud Firestore Database
     try {
       await syncUpdateApplication(updatedApp);
+      logEvent('Info', 'Application', `Application ${updatedApp.reference_code} status updated to "${updatedApp.status}" — ${updatedApp.first_name} ${updatedApp.last_name}`);
     } catch (err) {
       console.error('Failed to update application in backend/Firestore:', err);
     }
   };
 
   const handleDeleteApplication = async (id: string) => {
-    // Immediately reflect on frontend state
+    // Find application being deleted to restore target scholarship slot count
+    const appToDelete = applications.find((a) => a.id === id);
+
+    // Optimistically remove from UI immediately
     setApplications((prev) => prev.filter((a) => a.id !== id));
 
-    // Persist deletion to Backend REST API & Cloud Firestore Database
+    // Slot restoration: must run BEFORE syncDeleteApplication to ensure the
+    // Firestore snapshot update from deletion doesn't race-overwrite the slot count.
+    if (appToDelete) {
+      const targetSch = scholarships.find(
+        (s) => s.id === appToDelete.scholarship_id || s.title === appToDelete.scholarship_title
+      );
+      if (targetSch) {
+        const restoredSlots = Math.min(targetSch.slots, targetSch.slots_remaining + 1);
+        const updatedSch = {
+          ...targetSch,
+          slots_remaining: restoredSlots,
+        };
+        // Update local state first
+        setScholarships((prev) => prev.map((s) => (s.id === targetSch.id ? updatedSch : s)));
+        try {
+          // Persist restored slot count to both backend and Firestore
+          await syncSaveScholarship(updatedSch);
+          logEvent('Info', 'Scholarship', `Slot restored for "${targetSch.title}": ${targetSch.slots_remaining} → ${restoredSlots} (after application deletion)`);
+        } catch (err) {
+          console.error('Failed to sync restored slot count:', err);
+        }
+      }
+      logEvent('Warning', 'Application', `Application deleted: ${appToDelete.reference_code} — ${appToDelete.first_name} ${appToDelete.last_name}`);
+    }
+
     try {
       await syncDeleteApplication(id);
     } catch (err) {
@@ -204,35 +266,38 @@ export default function App() {
   };
 
   const handleSaveFreezeAction = async (freezeRecord: FreezePeriod) => {
-    // Immediately reflect on frontend state
     setFreezePeriods((prev) => [freezeRecord, ...prev.filter((f) => f.id !== freezeRecord.id)]);
 
     try {
       await syncSaveFreezePeriod(freezeRecord);
 
-      // If freeze is active, update targeted scholarships
-      if (freezeRecord.is_active) {
-        const targeted = scholarships.filter(
-          (s) => freezeRecord.scholarship_id === 'all' || s.id === freezeRecord.scholarship_id
-        );
-        for (const s of targeted) {
-          const updated = {
-            ...s,
-            is_frozen: true,
-            freeze_note: freezeRecord.announcement_note,
-          };
-          setScholarships((prev) => prev.map((item) => (item.id === s.id ? updated : item)));
-          await syncSaveScholarship(updated);
-        }
+      // Update targeted scholarships based on is_active (freeze vs unfreeze)
+      const targeted = scholarships.filter(
+        (s) => freezeRecord.scholarship_id === 'all' || s.id === freezeRecord.scholarship_id
+      );
+      const actionLabel = freezeRecord.is_active ? 'FROZEN' : 'UNFROZEN';
+      for (const s of targeted) {
+        const updated: Scholarship = {
+          ...s,
+          is_frozen: freezeRecord.is_active,
+          freeze_note: freezeRecord.is_active ? freezeRecord.announcement_note : undefined,
+        };
+        setScholarships((prev) => prev.map((item) => (item.id === s.id ? updated : item)));
+        await syncSaveScholarship(updated);
       }
+      logEvent(
+        freezeRecord.is_active ? 'Warning' : 'Info',
+        'Freeze',
+        `Scholarship ${actionLabel}: ${freezeRecord.scholarship_title || 'All Programs'} — "${freezeRecord.announcement_note}"`
+      );
     } catch (err) {
       console.error('Failed to save freeze period to backend/Firestore:', err);
     }
   };
 
-  // Admin Actions: Add, Edit, Delete Scholarship (Completely recorded on Frontend, Backend API, and Cloud Firestore)
+  // Admin Actions: Add, Edit, Delete Scholarship
   const handleSaveScholarshipFromAdmin = async (sch: Scholarship) => {
-    // Immediately reflect on frontend state
+    const isNew = !scholarships.some((s) => s.id === sch.id);
     setScholarships((prev) => {
       const exists = prev.some((s) => s.id === sch.id);
       return exists ? prev.map((s) => (s.id === sch.id ? sch : s)) : [sch, ...prev];
@@ -240,17 +305,19 @@ export default function App() {
 
     try {
       await syncSaveScholarship(sch);
+      logEvent('System', 'Scholarship', `Scholarship ${isNew ? 'created' : 'updated'}: "${sch.title}" (${sch.code}) — Slots: ${sch.slots}, Grant: ₱${sch.grant_amount.toLocaleString()}`);
     } catch (err) {
       console.error('Failed to save scholarship to backend/Firestore:', err);
     }
   };
 
   const handleDeleteScholarshipFromAdmin = async (id: string) => {
-    // Immediately reflect on frontend state
+    const schToDelete = scholarships.find((s) => s.id === id);
     setScholarships((prev) => prev.filter((s) => s.id !== id));
 
     try {
       await syncDeleteScholarship(id);
+      logEvent('Warning', 'Scholarship', `Scholarship deleted: "${schToDelete?.title || id}" (${schToDelete?.code || id})`);
     } catch (err) {
       console.error('Failed to delete scholarship from backend/Firestore:', err);
     }
@@ -267,7 +334,6 @@ export default function App() {
   // Faculty & User Accounts Update (Cloud Firestore & Backend API)
   const handleUpdateUser = async (updatedUser: UserProfile) => {
     try {
-      // Optimistic update so UI reflects immediately
       setUsers((prev) => {
         const index = prev.findIndex((u) => u.id === updatedUser.id);
         if (index >= 0) {
@@ -278,7 +344,6 @@ export default function App() {
         return [...prev, updatedUser];
       });
 
-      // If updating currently logged in user, refresh immediate local state
       if (activeUser && activeUser.id === updatedUser.id) {
         setActiveUser(updatedUser);
         saveStoredActiveUser(updatedUser);
@@ -303,6 +368,7 @@ export default function App() {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    const userToDelete = users.find((u) => u.id === userId);
     try {
       setUsers((prev) => prev.filter((u) => u.id !== userId));
 
@@ -315,6 +381,7 @@ export default function App() {
       });
 
       await Promise.allSettled([firestorePromise, backendPromise]);
+      logEvent('Warning', 'UserManagement', `Staff account deleted: "${userToDelete?.full_name || userId}" (${userToDelete?.email || userId})`);
     } catch (err) {
       console.error('Failed to delete user:', err);
     }
@@ -330,11 +397,11 @@ export default function App() {
         currentView={currentView}
         onNavigate={view => {
           if (view === 'staff' && activeUser?.role !== 'staff') {
-            setCurrentView('login');
+            changeView('login');
           } else if (view === 'admin' && activeUser?.role !== 'admin') {
-            setCurrentView('login');
+            changeView('login');
           } else {
-            setCurrentView(view);
+            changeView(view);
           }
         }}
       />
@@ -343,7 +410,7 @@ export default function App() {
       <main className="flex-1">
         {currentView === 'portal' && (
           <PortalSelection
-            onSelectPortal={portal => setCurrentView(portal)}
+            onSelectPortal={portal => changeView(portal)}
             openScholarshipsCount={scholarships.filter(s => !s.is_frozen).length}
           />
         )}
@@ -360,7 +427,7 @@ export default function App() {
         {currentView === 'login' && (
           <StaffAdminLogin
             onLoginSuccess={handleLoginSuccess}
-            onBackToPortal={() => setCurrentView('portal')}
+            onBackToPortal={() => changeView('portal')}
           />
         )}
 

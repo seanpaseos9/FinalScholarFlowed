@@ -9,6 +9,25 @@ import { EmergencyFreezeModal } from './EmergencyFreezeModal';
 import { ApplicationReviewDrawer } from './ApplicationReviewDrawer';
 import { UserProfileModal } from '../common/UserProfileModal';
 
+/**
+ * Standardized date formatter — outputs 'MMM D, YYYY' (e.g. Sep 6, 2026).
+ * Accepts ISO strings, YYYY-MM-DD strings, or any Date-parseable value.
+ */
+function formatDate(dateStr: string): string {
+  try {
+    // Parse YYYY-MM-DD as local date to avoid UTC off-by-one shifts
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (year && month && day) {
+      const d = new Date(year, month - 1, day);
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
 interface StaffPanelProps {
   user: UserProfile;
   scholarships: Scholarship[];
@@ -258,7 +277,7 @@ export const StaffPanel: React.FC<StaffPanelProps> = ({
                           <span className="text-[10px] font-bold text-indigo-600">GWA: {app.gwa.toFixed(2)}</span>
                         </td>
                         <td className="p-4 text-slate-500">
-                          {new Date(app.created_at).toLocaleDateString()}
+                          {formatDate(app.created_at)}
                         </td>
                         <td className="p-4">
                           <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-md font-bold text-[10px] uppercase ${
@@ -315,7 +334,7 @@ export const StaffPanel: React.FC<StaffPanelProps> = ({
                       <p className="text-[11px] text-slate-500">{s.category} Grant • {s.slots_remaining} slots left</p>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-indigo-600 text-sm block">{s.deadline}</span>
+                      <span className="font-bold text-indigo-600 text-sm block">{formatDate(s.deadline)}</span>
                       {s.is_frozen ? (
                         <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                           Paused

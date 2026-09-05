@@ -119,6 +119,7 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
                 <option value="Athletic">Athletic</option>
                 <option value="Alumni">Alumni</option>
                 <option value="Industry">Industry</option>
+                <option value="Leadership">Leadership</option>
               </select>
             </div>
 
@@ -193,6 +194,7 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
             <input
               type="date"
               value={deadline}
+              min={new Date().toISOString().split('T')[0]}
               onChange={e => setDeadline(e.target.value)}
               className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none"
             />

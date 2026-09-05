@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, ShieldAlert, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { Scholarship, FreezePeriod } from '../../types';
 
 interface EmergencyFreezeModalProps {
@@ -14,17 +14,33 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
   onClose,
   onSaveFreeze,
 }) => {
+  const today = new Date().toISOString().split('T')[0];
   const [selectedScholarshipId, setSelectedScholarshipId] = useState<string>('all');
-  const [actionType, setActionType] = useState<'freeze' | 'extend'>('freeze');
-  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState<string>('2026-08-31');
+  const [actionType, setActionType] = useState<'freeze' | 'extend' | 'unfreeze'>('freeze');
+  const [startDate, setStartDate] = useState<string>(today);
+  const [endDate, setEndDate] = useState<string>('');
+  const [dateError, setDateError] = useState<string>('');
   const [announcementNote, setAnnouncementNote] = useState<string>(
     'Notice: Submissions temporarily paused for mid-term academic verification by the Scholarship Evaluation Committee.'
   );
 
+  const selectedScholarship = scholarships.find(s => s.id === selectedScholarshipId);
+  const isCurrentlyFrozen =
+    selectedScholarshipId === 'all'
+      ? scholarships.some(s => s.is_frozen)
+      : selectedScholarship?.is_frozen ?? false;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!announcementNote.trim()) return;
+
+    if (actionType !== 'unfreeze') {
+      if (!announcementNote.trim()) return;
+      if (endDate && startDate && endDate < startDate) {
+        setDateError('End date must be on or after the start date.');
+        return;
+      }
+    }
+    setDateError('');
 
     const matchedSch = scholarships.find(s => s.id === selectedScholarshipId);
 
@@ -32,9 +48,12 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
       id: `fz-${Date.now()}`,
       scholarship_id: selectedScholarshipId,
       scholarship_title: matchedSch ? matchedSch.title : 'All Scholarships',
-      start_date: startDate,
-      end_date: endDate,
-      announcement_note: announcementNote.trim(),
+      start_date: actionType === 'unfreeze' ? today : startDate,
+      end_date: actionType === 'unfreeze' ? today : endDate,
+      announcement_note:
+        actionType === 'unfreeze'
+          ? 'Scholarship submissions have been resumed.'
+          : announcementNote.trim(),
       created_by: 'Academic Aid Coordinator (Staff)',
       created_at: new Date().toISOString(),
       is_active: actionType === 'freeze',
@@ -80,7 +99,9 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
             >
               <option value="all">⚡ ALL OPEN SCHOLARSHIP PROGRAMS</option>
               {scholarships.map(s => (
-                <option key={s.id} value={s.id}>{s.title} ({s.code})</option>
+                <option key={s.id} value={s.id}>
+                  {s.title} ({s.code}){s.is_frozen ? ' — Frozen' : ''}
+                </option>
               ))}
             </select>
           </div>
@@ -90,12 +111,18 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Action Type</label>
               <select
                 value={actionType}
-                onChange={e => setActionType(e.target.value as 'freeze' | 'extend')}
+                onChange={e => setActionType(e.target.value as 'freeze' | 'extend' | 'unfreeze')}
                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none"
               >
                 <option value="freeze">Pause / Freeze Submissions</option>
                 <option value="extend">Extend Application Deadline</option>
+                <option value="unfreeze">Unfreeze / Resume Submissions</option>
               </select>
+              {actionType === 'unfreeze' && !isCurrentlyFrozen && (
+                <p className="text-[11px] text-amber-600 mt-1 font-medium">
+                  Selected program is not currently frozen.
+                </p>
+              )}
             </div>
 
             <div>
@@ -103,39 +130,52 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
               <input
                 type="date"
                 value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none"
+                min={today}
+                onChange={e => { setStartDate(e.target.value); setDateError(''); }}
+                disabled={actionType === 'unfreeze'}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Effective End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none"
-            />
-          </div>
+          {actionType !== 'unfreeze' && (
+            <>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Effective End Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate || today}
+                  onChange={e => { setEndDate(e.target.value); setDateError(''); }}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none"
+                />
+                {dateError && <p className="text-[11px] text-rose-600 mt-1 font-medium">{dateError}</p>}
+              </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Student Portal Announcement Note</label>
-            <textarea
-              rows={3}
-              value={announcementNote}
-              onChange={e => setAnnouncementNote(e.target.value)}
-              placeholder="Enter custom note broadcasted to students..."
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none"
-            />
-          </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Student Portal Announcement Note</label>
+                <textarea
+                  rows={3}
+                  value={announcementNote}
+                  onChange={e => setAnnouncementNote(e.target.value)}
+                  placeholder="Enter custom note broadcasted to students..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:outline-none"
+                />
+              </div>
+            </>
+          )}
 
-          <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-start space-x-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <p>
-              Saving this action will immediately broadcast an announcement banner across the Student Applicant Portal and update program status.
-            </p>
-          </div>
+          {actionType === 'unfreeze' ? (
+            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-[11px] text-emerald-900 flex items-start space-x-2">
+              <span className="text-emerald-600 shrink-0 font-bold text-base leading-none mt-0.5">✓</span>
+              <p>This will immediately lift the freeze and resume open student submissions. The announcement banner will be removed from the Student Portal.</p>
+            </div>
+          ) : (
+            <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-start space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <p>Saving this action will immediately broadcast an announcement banner across the Student Applicant Portal and update program status.</p>
+            </div>
+          )}
 
           <div className="pt-2 flex justify-end space-x-2">
             <button
@@ -147,9 +187,10 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-slate-900 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
+              disabled={actionType === 'unfreeze' && !isCurrentlyFrozen}
+              className="px-5 py-2 bg-slate-900 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Broadcast & Save Action
+              {actionType === 'unfreeze' ? 'Confirm Unfreeze' : 'Broadcast & Save Action'}
             </button>
           </div>
 

@@ -35,7 +35,7 @@ export const ScholarshipCatalog: React.FC<ScholarshipCatalogProps> = ({
     }
   }, []);
 
-  const categories: (ScholarshipCategory | 'All')[] = ['All', 'Academic', 'Financial', 'Athletic', 'Alumni', 'Industry'];
+  const categories: (ScholarshipCategory | 'All')[] = ['All', 'Academic', 'Financial', 'Athletic', 'Alumni', 'Industry', 'Leadership'];
 
   const filteredScholarships = scholarships.filter(s => {
     const matchesSearch = s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
