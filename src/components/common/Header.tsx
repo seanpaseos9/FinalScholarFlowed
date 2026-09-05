@@ -35,8 +35,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="flex items-center space-x-2 bg-slate-800/80 px-2.5 py-0.5 rounded-full border border-slate-700 text-[10px]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-semibold text-emerald-400">Cloud Firestore</span>
-            <span className="text-slate-400 hidden md:inline">| scholarflowed3</span>
+            <span className="font-semibold text-emerald-400">Secure Portal</span>
+            <span className="text-slate-400 hidden md:inline">| Active</span>
           </div>
         </div>
       </div>
