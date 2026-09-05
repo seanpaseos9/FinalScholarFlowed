@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import defaultLogo from '../../assets/images/scholarflow_LOGO.png';
 
 interface ScholarFlowLogoProps {
   className?: string;
@@ -50,7 +51,7 @@ export const ScholarFlowLogo: React.FC<ScholarFlowLogoProps> = ({
       ? 'bg-white border-slate-200'
       : 'bg-transparent border-transparent';
 
-  const logoSrc = customLogo && !imgError ? customLogo : '/scholarflow_LOGO.png';
+  const logoSrc = customLogo && !imgError ? customLogo : defaultLogo;
 
   return (
     <div
