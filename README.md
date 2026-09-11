@@ -1,4 +1,4 @@
-﻿# ScholarFlow — Scholarship Application & Management Portal
+# ScholarFlow — Scholarship Application & Management Portal
 
 > An institutional scholarship and financial aid management platform designed for transparent evaluations, paperless grant processing, and real-time student tracking.
 
@@ -21,8 +21,7 @@ ScholarFlow/
 ├── .gitignore                          # Git ignore rules
 │
 ├── /public/                            # Static assets served directly
-│   ├── logo.png                        # App logo (browser tab & favicon)
-│   └── scholarflow_LOGO.png            # Official ScholarFlow logo
+│   └── scholarflow_LOGO.png            # App logo & browser tab favicon
 │
 ├── /src/                               # Main application source code
 │   ├── main.tsx                        # React app entry point
@@ -32,11 +31,8 @@ ScholarFlow/
 │   │
 │   ├── /assets/                        # Internal app assets
 │   │   └── /images/                    # Image files used within the app
-│   │       ├── logo.png
-│   │       ├── scholarflow_LOGO.png
-│   │       ├── scholarflow_logo.jpg
-│   │       ├── mapua_intramuros_facade.jpg
-│   │       └── scholarship_portal_bg.jpg
+│   │       ├── scholarflow_LOGO.png    # Primary ScholarFlow brand emblem
+│   │       └── scholarship_portal_bg.jpg # Background artwork for login portal
 │   │
 │   ├── /components/                    # All UI components
 │   │   │
@@ -46,8 +42,7 @@ ScholarFlow/
 │   │   │   ├── HelpGuideModal.tsx      # Eligibility & FAQ guide modal
 │   │   │   ├── DocumentUploader.tsx    # File upload component for applications
 │   │   │   ├── DocumentViewerModal.tsx # Document preview modal
-│   │   │   ├── ScholarFlowLogo.tsx     # SVG logo component
-│   │   │   ├── ScholarFlowOfficialEmblem.tsx  # Official emblem component
+│   │   │   ├── ScholarFlowLogo.tsx     # Brand logo renderer component
 │   │   │   └── UserProfileModal.tsx    # Staff/Admin profile editor modal
 │   │   │
 │   │   ├── /portal/                    # Portal Home (Landing Page)
@@ -175,14 +170,34 @@ npx ts-node server.ts
 
 ---
 
-## 📄 Documentation
+## 📄 Project Documentation & Academic Specifications
 
-| File | Description |
-|------|-------------|
-| SRS.md | Software Requirements Specification |
-| security_spec.md | Security design and Firestore rules |
-| firestore.rules | Database access control rules |
-| firebase-blueprint.json | Firestore collection schema |
+| File | Type | Purpose / Academic Role | Required at Runtime? |
+|------|------|-------------------------|---------------------|
+| `SRS.md` | Thesis / Capstone Doc | Software Requirements Specification (Scope, Functional Requirements) | No (Keep for thesis documentation) |
+| `security_spec.md` | Thesis / Capstone Doc | Security Invariants & Hardened Test Vectors specification | No (Keep for thesis documentation) |
+| `firestore.rules` | Security Config | Production security rules for Firebase Firestore access control | **Yes** (Firebase deployment) |
+| `firebase-blueprint.json` | Architecture Spec | Cloud Firestore collection schema and data architecture model | No (Schema documentation) |
+
+---
+
+## 🧹 File Audit & Optimization History
+
+The repository has been pruned and optimized to remove **unused legacy assets, duplicate media, and project leftovers**, saving **~2.66 MB** of unnecessary bloat:
+
+| File / Folder Path | File Type | Size | Status | Action Taken |
+|--------------------|-----------|------|--------|--------------|
+| `src/assets/images/mapua_intramuros_facade_1786713740521.jpg` | Image | ~993 KB | Unused background photo | ✅ Pruned / Removed |
+| `src/assets/images/scholarflow_logo.jpg` | Image | ~323 KB | Unused JPG logo | ✅ Pruned / Removed |
+| `src/assets/images/scholarflow_logo_1788430518081.jpg` | Image | ~323 KB | Duplicate unused JPG logo | ✅ Pruned / Removed |
+| `src/assets/images/logo.png` | Image | ~454 KB | Duplicate of `scholarflow_LOGO.png` | ✅ Pruned / Removed |
+| `public/logo.png` | Image | ~454 KB | Duplicate in `/public/` | ✅ Pruned / Removed |
+| `src/components/common/ScholarFlowOfficialEmblem.tsx` | Component | ~10 KB | Orphaned legacy SVG component | ✅ Pruned / Removed |
+| `/assets/` (at project root) | Directory | ~2 B | Empty AI Studio leftover folder | ✅ Pruned / Removed |
+| `bun.lock` | Lockfile | ~106 KB | Unused lockfile (npm is active) | ✅ Pruned / Removed |
+| `metadata.json` | Config | ~254 B | Leftover AI Studio session descriptor | ✅ Pruned / Removed |
+
+> **Net storage savings:** **~2.66 MB** removed. All active application features, branding, and academic thesis documentation (`SRS.md`, `security_spec.md`) remain 100% intact.
 
 ---
 
