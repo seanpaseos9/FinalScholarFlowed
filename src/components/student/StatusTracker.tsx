@@ -65,12 +65,12 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
           Enter your official <strong>Reference Code</strong> (e.g. SF-982F1A03), <strong>Student ID Number</strong>, or registered <strong>Email Address</strong> below.
         </p>
 
-        <form onSubmit={handleSearch} className="max-w-xl mx-auto flex gap-2 pt-2">
+        <form onSubmit={handleSearch} className="max-w-xl mx-auto flex flex-col sm:flex-row gap-2 pt-2">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Enter Reference Code, Student ID, or Email Address..."
+              placeholder="Enter Reference Code, Student ID, or Email..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none focus:bg-white transition-all"
@@ -78,7 +78,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
           </div>
           <button
             type="submit"
-            className="bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs px-6 py-3 rounded-xl transition-colors shadow-xs cursor-pointer"
+            className="bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs px-6 py-3 rounded-xl transition-colors shadow-xs cursor-pointer shrink-0"
           >
             Track Application
           </button>

@@ -6,6 +6,7 @@ import { StudentPortal } from './components/student/StudentPortal';
 import { StaffAdminLogin } from './components/auth/StaffAdminLogin';
 import { StaffPanel } from './components/staff/StaffPanel';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { HelpGuideModal } from './components/common/HelpGuideModal';
 import {
   getStoredActiveUser,
   saveStoredActiveUser,
@@ -55,7 +56,16 @@ export default function App() {
     return 'portal';
   });
 
-  const changeView = (view: 'portal' | 'student' | 'login' | 'staff' | 'admin') => {
+  const [studentInitialTab, setStudentInitialTab] = useState<'catalog' | 'tracker'>('catalog');
+  const [activeGuideModal, setActiveGuideModal] = useState<'requirements' | 'faq' | null>(null);
+
+  const changeView = (
+    view: 'portal' | 'student' | 'login' | 'staff' | 'admin',
+    tab?: 'catalog' | 'tracker'
+  ) => {
+    if (view === 'student' && tab) {
+      setStudentInitialTab(tab);
+    }
     setCurrentView(view);
     localStorage.setItem('scholarflow_current_view', view);
   };
@@ -443,27 +453,33 @@ export default function App() {
     }
   };
 
+  const handleNavigate = (
+    view: 'portal' | 'student' | 'login' | 'staff' | 'admin',
+    tab?: 'catalog' | 'tracker'
+  ) => {
+    if (view === 'staff' && activeUser?.role !== 'staff') {
+      changeView('login');
+    } else if (view === 'admin' && activeUser?.role !== 'admin') {
+      changeView('login');
+    } else {
+      changeView(view, tab);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-600 selection:text-white overflow-x-hidden w-full">
       
-      {/* Universal Header */}
+      {/* Universal Responsive Header */}
       <Header
         activeUser={activeUser}
         onLogout={handleLogout}
         currentView={currentView}
-        onNavigate={view => {
-          if (view === 'staff' && activeUser?.role !== 'staff') {
-            changeView('login');
-          } else if (view === 'admin' && activeUser?.role !== 'admin') {
-            changeView('login');
-          } else {
-            changeView(view);
-          }
-        }}
+        onNavigate={handleNavigate}
+        onOpenGuide={(tab) => setActiveGuideModal(tab)}
       />
 
-      {/* Main Page Views */}
-      <main className="flex-1">
+      {/* Main Page Views with responsive padding */}
+      <main className="flex-1 w-full overflow-x-hidden">
         {currentView === 'portal' && (
           <PortalSelection
             onSelectPortal={portal => changeView(portal)}
@@ -473,9 +489,11 @@ export default function App() {
 
         {currentView === 'student' && (
           <StudentPortal
+            key={`student-portal-${studentInitialTab}`}
             scholarships={accurateScholarships}
             applications={applications}
             freezePeriods={freezePeriods}
+            initialTab={studentInitialTab}
             onNewApplication={handleNewApplication}
           />
         )}
@@ -516,8 +534,24 @@ export default function App() {
         )}
       </main>
 
-      {/* Universal Footer */}
-      <Footer />
+      {/* Interactive Universal Footer */}
+      <Footer
+        onNavigate={handleNavigate}
+        onOpenGuide={(tab) => setActiveGuideModal(tab)}
+      />
+
+      {/* Responsive Help & FAQ Guide Modal */}
+      <HelpGuideModal
+        isOpen={Boolean(activeGuideModal)}
+        initialTab={activeGuideModal || 'requirements'}
+        onClose={() => setActiveGuideModal(null)}
+        onNavigateToCatalog={() => {
+          changeView('student', 'catalog');
+        }}
+        onNavigateToTracker={() => {
+          changeView('student', 'tracker');
+        }}
+      />
 
     </div>
   );

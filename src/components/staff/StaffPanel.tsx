@@ -124,10 +124,10 @@ export const StaffPanel: React.FC<StaffPanelProps> = ({
       </div>
 
       {/* Tabs Bar */}
-      <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
+      <div className="flex items-center space-x-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
         <button
           onClick={() => setActiveTab('queue')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+          className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'queue'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-white text-slate-600 hover:bg-slate-100'
@@ -144,7 +144,7 @@ export const StaffPanel: React.FC<StaffPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('schedule')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+          className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'schedule'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-white text-slate-600 hover:bg-slate-100'
@@ -156,7 +156,7 @@ export const StaffPanel: React.FC<StaffPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('roster')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+          className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'roster'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-white text-slate-600 hover:bg-slate-100'
