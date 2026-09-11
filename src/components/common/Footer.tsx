@@ -1,15 +1,17 @@
 import React from 'react';
-import { Mail, Phone, MapPin, ShieldCheck, Award, GraduationCap, Clock, BookOpen, HelpCircle, ArrowRight, Shield } from 'lucide-react';
+import { Mail, Phone, MapPin, ShieldCheck, GraduationCap, Clock, BookOpen, HelpCircle, Shield } from 'lucide-react';
 import { ScholarFlowLogo } from './ScholarFlowLogo';
 
 interface FooterProps {
   onNavigate?: (view: 'portal' | 'student' | 'login' | 'staff' | 'admin', tab?: 'catalog' | 'tracker') => void;
   onOpenGuide?: (tab: 'requirements' | 'faq') => void;
+  currentView?: 'portal' | 'student' | 'login' | 'staff' | 'admin';
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onNavigate,
   onOpenGuide,
+  currentView = 'portal',
 }) => {
   const handleNav = (view: 'portal' | 'student' | 'login' | 'staff' | 'admin', tab?: 'catalog' | 'tracker') => {
     if (onNavigate) {
@@ -24,11 +26,13 @@ export const Footer: React.FC<FooterProps> = ({
     }
   };
 
+  const isPortal = currentView === 'portal';
+
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 lg:gap-10">
-          
+        <div className={`grid gap-8 lg:gap-10 ${isPortal ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3'}`}>
+
           {/* Col 1: About */}
           <div className="space-y-4">
             <div
@@ -50,59 +54,61 @@ export const Footer: React.FC<FooterProps> = ({
             </p>
           </div>
 
-          {/* Col 2: Quick Links / Navigation (Repaired & Fully Interactive) */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider border-b border-slate-800 pb-2">
-              Navigation
-            </h4>
-            <ul className="space-y-2 text-xs">
-              <li>
-                <button
-                  onClick={() => handleNav('student', 'catalog')}
-                  className="text-slate-400 hover:text-white transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
-                >
-                  <GraduationCap className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  <span>Browse Scholarship Programs</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('student', 'tracker')}
-                  className="text-slate-400 hover:text-white transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
-                >
-                  <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  <span>Application Status Tracker</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleGuide('requirements')}
-                  className="text-slate-400 hover:text-white transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
-                >
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  <span>Eligibility & Requirements Guide</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleGuide('faq')}
-                  className="text-slate-400 hover:text-white transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
-                >
-                  <HelpCircle className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  <span>Frequently Asked Questions</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('login')}
-                  className="text-slate-400 hover:text-indigo-300 transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
-                >
-                  <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  <span>Staff & Admin Gateway</span>
-                </button>
-              </li>
-            </ul>
-          </div>
+          {/* Col 2: Quick Navigation — Only visible on Portal Home */}
+          {isPortal && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider border-b border-slate-800 pb-2">
+                Navigation
+              </h4>
+              <ul className="space-y-2 text-xs">
+                <li>
+                  <button
+                    onClick={() => handleNav('student', 'catalog')}
+                    className="text-slate-400 hover:text-white transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    <span>Browse Scholarship Programs</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleNav('student', 'tracker')}
+                    className="text-slate-400 hover:text-white transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    <span>Application Status Tracker</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleGuide('requirements')}
+                    className="text-slate-400 hover:text-white transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    <span>Eligibility &amp; Requirements Guide</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleGuide('faq')}
+                    className="text-slate-400 hover:text-white transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    <span>Frequently Asked Questions</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleNav('login')}
+                    className="text-slate-400 hover:text-indigo-300 transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
+                  >
+                    <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    <span>Staff &amp; Admin Gateway</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          )}
 
           {/* Col 3: Contact Info */}
           <div className="space-y-3">
@@ -130,7 +136,7 @@ export const Footer: React.FC<FooterProps> = ({
             <div className="flex items-center space-x-2 text-indigo-400">
               <ShieldCheck className="w-4 h-4" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                Security & Data Integrity
+                Security &amp; Data Integrity
               </h4>
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed">

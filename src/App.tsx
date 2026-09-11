@@ -538,6 +538,7 @@ export default function App() {
       <Footer
         onNavigate={handleNavigate}
         onOpenGuide={(tab) => setActiveGuideModal(tab)}
+        currentView={currentView}
       />
 
       {/* Responsive Help & FAQ Guide Modal */}
