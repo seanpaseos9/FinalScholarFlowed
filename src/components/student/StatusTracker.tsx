@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Search, Clock, CheckCircle2, AlertCircle, Award, DollarSign, Calendar, FileText, UserCheck, ShieldCheck, Printer, XCircle, Eye } from 'lucide-react';
 import { Application, ApplicationStatus, ApplicationDocument } from '../../types';
@@ -25,15 +25,42 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
   }, [initialSearchCode]);
 
   const cleanQuery = searchQuery.trim().toLowerCase();
+  const cleanAlpha = cleanQuery.replace(/[^a-z0-9]/g, '');
 
-  // Filter matching application by Reference Code, Student Number, or Email Address
-  const matchedApps = cleanQuery
-    ? applications.filter(a =>
-        a.reference_code.toLowerCase().includes(cleanQuery) ||
-        a.student_number.toLowerCase().includes(cleanQuery) ||
-        a.email.toLowerCase().includes(cleanQuery)
-      )
-    : [];
+  // Filter matching application by Reference Code, Student Number, Email, or Name (case-insensitive, non-capital friendly)
+  const matchedApps = useMemo(() => {
+    if (!cleanQuery) return [];
+    return applications.filter((a) => {
+      const refCode = (a.reference_code || '').toLowerCase();
+      const refAlpha = refCode.replace(/[^a-z0-9]/g, '');
+
+      const studentNum = (a.student_number || '').toLowerCase();
+      const studentNumAlpha = studentNum.replace(/[^a-z0-9]/g, '');
+
+      const email = (a.email || '').toLowerCase();
+      const fullName = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase();
+
+      // 1. Reference code match (case-insensitive, handles lower/uppercase and with or without hyphens)
+      const matchesRef =
+        refCode === cleanQuery ||
+        refCode.includes(cleanQuery) ||
+        (cleanAlpha.length >= 3 && (refAlpha === cleanAlpha || refAlpha.includes(cleanAlpha)));
+
+      // 2. Student ID match (case-insensitive, handles lower/uppercase and with or without hyphens)
+      const matchesStudentNum =
+        studentNum === cleanQuery ||
+        studentNum.includes(cleanQuery) ||
+        (cleanAlpha.length >= 3 && (studentNumAlpha === cleanAlpha || studentNumAlpha.includes(cleanAlpha)));
+
+      // 3. Institutional email match (case-insensitive)
+      const matchesEmail = email === cleanQuery || email.includes(cleanQuery);
+
+      // 4. Student Full Name match (case-insensitive)
+      const matchesName = cleanQuery.length >= 3 && fullName.includes(cleanQuery);
+
+      return matchesRef || matchesStudentNum || matchesEmail || matchesName;
+    });
+  }, [applications, cleanQuery, cleanAlpha]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +89,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
           Track Your Scholarship Application
         </h2>
         <p className="text-xs text-slate-500 max-w-md mx-auto">
-          Enter your official <strong>Reference Code</strong> (e.g. SF-982F1A03), <strong>Student ID Number</strong>, or registered <strong>Email Address</strong> below.
+          Enter your official <strong>Reference Code</strong> (e.g. SF-982F1A03 or sf-982f1a03), <strong>Student ID Number</strong>, or registered <strong>Email Address</strong> below.
         </p>
 
         <form onSubmit={handleSearch} className="max-w-xl mx-auto flex flex-col sm:flex-row gap-2 pt-2">
@@ -72,9 +99,27 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
               type="text"
               placeholder="Enter Reference Code, Student ID, or Email..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none focus:bg-white transition-all"
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (e.target.value.trim().length >= 2) {
+                  setSearched(true);
+                }
+              }}
+              className="w-full pl-10 pr-9 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none focus:bg-white transition-all"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearched(false);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
+                title="Clear query"
+              >
+                ✕
+              </button>
+            )}
           </div>
           <button
             type="submit"

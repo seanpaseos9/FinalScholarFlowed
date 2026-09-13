@@ -31,11 +31,16 @@ const origStderrWrite = process.stderr.write.bind(process.stderr);
 // Set Firestore log level to silent to suppress internal gRPC stream disconnect messages
 setLogLevel('silent');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const serverDir =
+  typeof __dirname !== 'undefined'
+    ? __dirname
+    : path.dirname(fileURLToPath(import.meta.url));
 
 // Read Firebase config
-const configRaw = fs.readFileSync(path.join(__dirname, 'firebase-applet-config.json'), 'utf-8');
+const configPath = fs.existsSync(path.join(serverDir, 'firebase-applet-config.json'))
+  ? path.join(serverDir, 'firebase-applet-config.json')
+  : path.join(process.cwd(), 'firebase-applet-config.json');
+const configRaw = fs.readFileSync(configPath, 'utf-8');
 const firebaseConfig = JSON.parse(configRaw);
 
 // Initialize Firebase for server backend

@@ -37,13 +37,25 @@ export const ScholarshipCatalog: React.FC<ScholarshipCatalogProps> = ({
 
   const categories: (ScholarshipCategory | 'All')[] = ['All', 'Academic', 'Financial', 'Athletic', 'Alumni', 'Industry', 'Leadership'];
 
-  const filteredScholarships = scholarships.filter(s => {
-    const matchesSearch = s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          s.code.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || s.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredScholarships = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return scholarships.filter((s) => {
+      const matchesSearch =
+        !q ||
+        (s.title && s.title.toLowerCase().includes(q)) ||
+        (s.description && s.description.toLowerCase().includes(q)) ||
+        (s.code && s.code.toLowerCase().includes(q)) ||
+        (s.category && s.category.toLowerCase().includes(q)) ||
+        (s.grant_type && s.grant_type.toLowerCase().includes(q)) ||
+        (s.requirements && s.requirements.some((r) => r.toLowerCase().includes(q)));
+
+      const matchesCategory =
+        selectedCategory === 'All' ||
+        (s.category && s.category.trim().toLowerCase() === selectedCategory.trim().toLowerCase());
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [scholarships, searchQuery, selectedCategory]);
 
   return (
     <div className="space-y-8">
@@ -60,17 +72,27 @@ export const ScholarshipCatalog: React.FC<ScholarshipCatalogProps> = ({
               placeholder="Search programs by title, code or keyword..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+              className="w-full pl-10 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           {/* Category Filter Pills */}
           <div className="flex items-center space-x-1.5 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
             <Filter className="w-3.5 h-3.5 text-slate-400 mr-1 shrink-0" />
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <button
                 key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => setSelectedCategory(selectedCategory === cat && cat !== 'All' ? 'All' : cat)}
                 className={`text-xs font-semibold px-3.5 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                   selectedCategory === cat
                     ? 'bg-slate-900 text-white shadow-xs'
@@ -93,6 +115,18 @@ export const ScholarshipCatalog: React.FC<ScholarshipCatalogProps> = ({
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Try adjusting your search terms or selecting a different category filter.
           </p>
+          {(searchQuery || selectedCategory !== 'All') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('All');
+              }}
+              className="mt-2 text-xs font-bold px-4 py-2 bg-slate-900 text-white hover:bg-indigo-600 rounded-xl transition-colors cursor-pointer"
+            >
+              Reset Search & Filters
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
