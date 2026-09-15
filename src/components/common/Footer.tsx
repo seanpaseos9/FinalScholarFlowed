@@ -97,15 +97,6 @@ export const Footer: React.FC<FooterProps> = ({
                     <span>Frequently Asked Questions</span>
                   </button>
                 </li>
-                <li>
-                  <button
-                    onClick={() => handleNav('login')}
-                    className="text-slate-400 hover:text-indigo-300 transition-colors flex items-center space-x-2 py-1 text-left w-full cursor-pointer group"
-                  >
-                    <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                    <span>Staff &amp; Admin Gateway</span>
-                  </button>
-                </li>
               </ul>
             </div>
           )}

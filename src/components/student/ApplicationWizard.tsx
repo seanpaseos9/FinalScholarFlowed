@@ -149,6 +149,12 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
     !duplicateCheck.isDuplicate
   );
 
+  // Step 2 is valid only when all 3 required documents are uploaded
+  const isStep2Valid = Boolean(docCom && docItr && docId);
+
+  // Step 3 is valid only when the terms agreement checkbox is checked
+  const isStep3Valid = agreeTerms && !duplicateCheck.isDuplicate;
+
   const validateStep2 = () => {
     setFormError(null);
     if (!docCom || !docItr || !docId) {
@@ -918,24 +924,29 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
             {step === 2 && (
               <button
                 type="button"
+                disabled={!isStep2Valid}
                 onClick={() => {
                   if (validateStep2()) setStep(3);
                 }}
-                className="flex items-center space-x-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-indigo-600 px-5 py-2.5 rounded-xl transition-colors shadow-xs cursor-pointer"
+                className={`flex items-center space-x-1.5 text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-xs ${
+                  !isStep2Valid
+                    ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                    : 'text-white bg-slate-900 hover:bg-indigo-600 cursor-pointer'
+                }`}
               >
-                <span>Continue to Summary</span>
-                <ChevronRight className="w-4 h-4" />
+                <span>{!isStep2Valid ? 'Upload All 3 Required Documents' : 'Continue to Summary'}</span>
+                {isStep2Valid && <ChevronRight className="w-4 h-4" />}
               </button>
             )}
 
             {step === 3 && (
               <button
                 type="button"
-                disabled={duplicateCheck.isDuplicate || isSubmitting}
+                disabled={!isStep3Valid || isSubmitting}
                 onClick={handleSubmitApplication}
                 className={`flex items-center space-x-1.5 text-xs font-bold px-6 py-2.5 rounded-xl transition-colors shadow-xs uppercase tracking-wider ${
-                  duplicateCheck.isDuplicate || isSubmitting
-                    ? 'bg-rose-100 text-rose-500 border border-rose-200 cursor-not-allowed'
+                  !isStep3Valid || isSubmitting
+                    ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
                     : 'text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
                 }`}
               >
@@ -945,6 +956,8 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
                     ? 'Recording to Cloud Database...'
                     : duplicateCheck.isDuplicate
                     ? 'You already applied for this scholarship'
+                    : !agreeTerms
+                    ? 'Please Accept the Declaration to Submit'
                     : 'Confirm & Submit Application'}
                 </span>
               </button>
