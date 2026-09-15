@@ -10,6 +10,7 @@ import {
   onSnapshot,
   writeBatch,
   setLogLevel,
+  deleteField,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -141,6 +142,7 @@ export const COLLECTIONS = {
   FREEZE_PERIODS: 'freeze_periods',
   INTERVIEWS: 'interviews',
   USERS: 'users',
+  VERIFICATIONS: 'device_verifications',
 };
 
 // -------------------------------------------------------------
@@ -237,9 +239,34 @@ export function subscribeScholarships(
 export async function saveScholarshipToFirestore(scholarship: Scholarship): Promise<void> {
   const path = `${COLLECTIONS.SCHOLARSHIPS}/${scholarship.id}`;
   try {
-    await setDoc(doc(db, COLLECTIONS.SCHOLARSHIPS, scholarship.id), scholarship, { merge: true });
+    const payload: any = { ...scholarship };
+    if (!payload.is_frozen || !payload.freeze_note) {
+      payload.freeze_note = deleteField();
+    }
+    await setDoc(doc(db, COLLECTIONS.SCHOLARSHIPS, scholarship.id), payload, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function updateScholarshipFreezeInFirestore(
+  id: string,
+  is_frozen: boolean,
+  freeze_note?: string
+): Promise<void> {
+  const path = `${COLLECTIONS.SCHOLARSHIPS}/${id}`;
+  try {
+    const updateData: any = {
+      is_frozen,
+    };
+    if (is_frozen && freeze_note) {
+      updateData.freeze_note = freeze_note;
+    } else {
+      updateData.freeze_note = deleteField();
+    }
+    await setDoc(doc(db, COLLECTIONS.SCHOLARSHIPS, id), updateData, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
 
@@ -502,3 +529,87 @@ export async function authenticateUserWithFirestore(
     };
   }
 }
+
+// -------------------------------------------------------------
+// Multi-Factor / Device Verification (OTP)
+// -------------------------------------------------------------
+export async function saveOtpToFirestore(userId: string, email: string, code: string): Promise<void> {
+  const path = `${COLLECTIONS.VERIFICATIONS}/${userId}`;
+  try {
+    await setDoc(doc(db, COLLECTIONS.VERIFICATIONS, userId), {
+      userId,
+      email,
+      code,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      created_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function verifyOtpInFirestore(
+  userId: string,
+  inputCode: string
+): Promise<{ valid: boolean; error?: string }> {
+  const path = `${COLLECTIONS.VERIFICATIONS}/${userId}`;
+  try {
+    const snap = await getDocFromServer(doc(db, COLLECTIONS.VERIFICATIONS, userId));
+    if (!snap.exists()) {
+      return { valid: false, error: 'No verification code found. Please request a new code.' };
+    }
+    const data = snap.data();
+    if (new Date(data.expires_at).getTime() < Date.now()) {
+      return { valid: false, error: 'Verification code has expired. Please request a new one.' };
+    }
+    if (data.code?.trim() !== inputCode.trim()) {
+      return { valid: false, error: 'Invalid verification code. Please check and try again.' };
+    }
+    // Delete OTP after successful verification to prevent reuse
+    await deleteDoc(doc(db, COLLECTIONS.VERIFICATIONS, userId)).catch(() => {});
+    return { valid: true };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    return { valid: false, error: 'Verification service error. Please try again.' };
+  }
+}
+
+export async function addKnownDeviceToUser(userId: string, deviceId: string): Promise<void> {
+  const path = `${COLLECTIONS.USERS}/${userId}`;
+  try {
+    const user = await getUserFromFirestore(userId);
+    if (user) {
+      const existing = user.known_device_ids || [];
+      if (!existing.includes(deviceId)) {
+        const updated = {
+          ...user,
+          known_device_ids: [...existing, deviceId],
+          updated_at: new Date().toISOString(),
+        };
+        await setDoc(doc(db, COLLECTIONS.USERS, userId), updated, { merge: true });
+      }
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function updateUserSessionTokenInFirestore(
+  userId: string,
+  sessionToken: string
+): Promise<void> {
+  const path = `${COLLECTIONS.USERS}/${userId}`;
+  try {
+    await setDoc(
+      doc(db, COLLECTIONS.USERS, userId),
+      {
+        active_session_token: sessionToken,
+        updated_at: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+

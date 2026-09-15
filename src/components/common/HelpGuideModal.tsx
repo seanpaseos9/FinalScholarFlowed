@@ -8,7 +8,6 @@ import {
   FileText,
   GraduationCap,
   Clock,
-  ShieldCheck,
   ChevronDown,
   ChevronUp,
   Award,
@@ -326,12 +325,7 @@ export const HelpGuideModal: React.FC<HelpGuideModalProps> = ({
           </div>
 
           {/* Footer Action Bar */}
-          <div className="bg-slate-50 border-t border-slate-200 p-4 sm:p-5 px-6 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
-            <div className="flex items-center space-x-2 text-xs text-slate-500">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Need further help? Contact <strong>aid@scholarflow.edu</strong></span>
-            </div>
-
+          <div className="bg-slate-50 border-t border-slate-200 p-4 sm:p-5 px-6 flex flex-col sm:flex-row justify-end items-center gap-3 shrink-0">
             <div className="flex items-center space-x-2 w-full sm:w-auto">
               {onNavigateToCatalog && (
                 <button

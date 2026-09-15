@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Calendar, Users, DollarSign, AlertTriangle, ArrowRight, CheckCircle2, ShieldAlert, Clock } from 'lucide-react';
+import { Search, Filter, Calendar, Users, AlertTriangle, ArrowRight, CheckCircle2, ShieldAlert, Clock } from 'lucide-react';
 import { Scholarship, ScholarshipCategory, Application } from '../../types';
 
 interface ScholarshipCatalogProps {
@@ -213,8 +213,8 @@ export const ScholarshipCatalog: React.FC<ScholarshipCatalogProps> = ({
                 {/* Grant Amount Display */}
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
                   <div className="flex items-center space-x-1.5 text-indigo-600 font-bold text-xs">
-                    <DollarSign className="w-4 h-4" />
-                    <span>Grant Value & Coverage:</span>
+                    <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[10px] leading-none shrink-0">₱</span>
+                    <span>Grant Value &amp; Coverage:</span>
                   </div>
                   <p className="text-sm font-bold text-slate-900">
                     ₱{s.grant_amount.toLocaleString()} <span className="text-xs font-normal text-slate-500">({s.grant_type})</span>

@@ -108,6 +108,10 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
       setFormError('Please enter your Student ID Number.');
       return false;
     }
+    if (!/^\d+$/.test(studentNumber.trim())) {
+      setFormError('Student ID Number must contain numbers only.');
+      return false;
+    }
     if (!firstName.trim() || !lastName.trim()) {
       setFormError('Please enter your complete full name.');
       return false;
@@ -130,6 +134,20 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
     }
     return true;
   };
+
+  const isStep1Valid = Boolean(
+    studentNumber.trim() &&
+    /^\d+$/.test(studentNumber.trim()) &&
+    firstName.trim() &&
+    lastName.trim() &&
+    email.trim() &&
+    email.includes('@') &&
+    phone.trim() &&
+    gwa !== '' &&
+    Number(gwa) > 0 &&
+    Number(gwa) <= 5.0 &&
+    !duplicateCheck.isDuplicate
+  );
 
   const validateStep2 = () => {
     setFormError(null);
@@ -360,12 +378,26 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     Student ID Number <span className="text-rose-500">*</span>
+                    <span className="text-[10px] font-normal text-slate-400 ml-1.5">(numbers only)</span>
                   </label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     placeholder="e.g. 2024104821"
                     value={studentNumber}
-                    onChange={e => setStudentNumber(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (
+                        ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) ||
+                        (e.ctrlKey || e.metaKey)
+                      ) {
+                        return;
+                      }
+                      if (!/^[0-9]$/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onChange={(e) => setStudentNumber(e.target.value.replace(/\D/g, ''))}
                     className={`w-full p-2.5 rounded-xl font-mono focus:ring-2 focus:bg-white focus:outline-none ${
                       duplicateCheck.isDuplicate && (duplicateCheck.matchType === 'student_number' || duplicateCheck.matchType === 'both')
                         ? 'bg-rose-50/60 border-2 border-rose-400 text-rose-900 focus:ring-rose-500'
@@ -862,18 +894,24 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
             {step === 1 && (
               <button
                 type="button"
-                disabled={duplicateCheck.isDuplicate}
+                disabled={!isStep1Valid}
                 onClick={() => {
                   if (validateStep1()) setStep(2);
                 }}
                 className={`flex items-center space-x-1.5 text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-xs ${
-                  duplicateCheck.isDuplicate
-                    ? 'bg-rose-100 text-rose-500 border border-rose-200 cursor-not-allowed'
+                  !isStep1Valid
+                    ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
                     : 'text-white bg-slate-900 hover:bg-indigo-600 cursor-pointer'
                 }`}
               >
-                <span>{duplicateCheck.isDuplicate ? 'You already applied for this scholarship' : 'Continue to Uploads'}</span>
-                {!duplicateCheck.isDuplicate && <ChevronRight className="w-4 h-4" />}
+                <span>
+                  {duplicateCheck.isDuplicate
+                    ? 'You already applied for this scholarship'
+                    : !isStep1Valid
+                    ? 'Fill Required Details to Continue'
+                    : 'Continue to Uploads'}
+                </span>
+                {isStep1Valid && <ChevronRight className="w-4 h-4" />}
               </button>
             )}
 

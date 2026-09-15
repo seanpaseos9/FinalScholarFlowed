@@ -146,9 +146,20 @@ export const Footer: React.FC<FooterProps> = ({
 
         </div>
 
-        <div className="border-t border-slate-800 mt-10 pt-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
+        <div className="border-t border-slate-800 mt-10 pt-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p>© {new Date().getFullYear()} ScholarFlow Platform. All rights reserved.</p>
-          <p className="text-slate-400 font-medium">Enterprise Scholarship Operations System</p>
+          <div className="flex items-center space-x-3 text-xs">
+            <button
+              onClick={() => handleNav('login')}
+              className="text-slate-500 hover:text-indigo-400 transition-colors cursor-pointer text-[11px] flex items-center space-x-1"
+              title="Restricted Staff & Admin Gateway"
+            >
+              <Shield className="w-3 h-3 text-slate-500 hover:text-indigo-400 transition-colors" />
+              <span>Staff &amp; Admin Sign In</span>
+            </button>
+            <span className="text-slate-700 hidden sm:inline">•</span>
+            <p className="text-slate-400 font-medium hidden sm:inline">Enterprise Scholarship Operations System</p>
+          </div>
         </div>
       </div>
     </footer>

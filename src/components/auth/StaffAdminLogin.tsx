@@ -1,7 +1,28 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShieldCheck, Lock, Mail, ArrowLeft, KeyRound, AlertCircle, Users, ChevronRight, Eye, EyeOff } from 'lucide-react';
-import { authenticateUserWithFirestore } from '../../lib/firebase';
+import {
+  ShieldCheck,
+  Lock,
+  Mail,
+  ArrowLeft,
+  KeyRound,
+  AlertCircle,
+  Users,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Smartphone,
+  RefreshCw,
+  Info,
+  CheckCircle2,
+} from 'lucide-react';
+import {
+  authenticateUserWithFirestore,
+  saveOtpToFirestore,
+  verifyOtpInFirestore,
+  addKnownDeviceToUser,
+} from '../../lib/firebase';
+import { getDeviceFingerprint } from '../../lib/crypto';
 import { UserProfile } from '../../types';
 import { ScholarFlowLogo } from '../common/ScholarFlowLogo';
 import portalBgImg from '../../assets/images/scholarship_portal_bg_1788197531135.jpg';
@@ -24,10 +45,20 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Step 3: Multi-factor Device Verification State
+  const [showOtpStep, setShowOtpStep] = useState(false);
+  const [pendingUser, setPendingUser] = useState<UserProfile | null>(null);
+  const [otpInput, setOtpInput] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpInfoMessage, setOtpInfoMessage] = useState<string | null>(null);
+
   // When switching role, reset form inputs for written authentication
   const handleSelectRole = (role: 'staff' | 'admin') => {
     setSelectedRole(role);
+    setShowOtpStep(false);
+    setPendingUser(null);
     setErrorMessage(null);
+    setOtpInfoMessage(null);
     setShowPassword(false);
     setEmail('');
     setPassword('');
@@ -35,7 +66,55 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
 
   const handleBackToRolePicker = () => {
     setSelectedRole(null);
+    setShowOtpStep(false);
+    setPendingUser(null);
     setErrorMessage(null);
+    setOtpInfoMessage(null);
+  };
+
+  const handleBackFromOtp = () => {
+    setShowOtpStep(false);
+    setPendingUser(null);
+    setOtpInput('');
+    setErrorMessage(null);
+    setOtpInfoMessage(null);
+  };
+
+  const sendOtpChallenge = async (user: UserProfile) => {
+    setOtpSending(true);
+    setErrorMessage(null);
+    try {
+      const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+      await saveOtpToFirestore(user.id, user.email, generatedCode);
+
+      const res = await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          code: generatedCode,
+          userName: user.full_name,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.emailSent) {
+        setOtpInfoMessage(`A 6-digit verification code was dispatched to ${user.email}. Enter it below to authorize this device.`);
+      } else if (data.devCode) {
+        setOtpInfoMessage(
+          `A 6-digit verification code was generated for ${user.email}. (Demo Code: [ ${data.devCode} ] — also printed to server console).`
+        );
+      } else {
+        setOtpInfoMessage(
+          `Verification code sent to ${user.email} (Developer Notice: code is logged to server terminal).`
+        );
+      }
+    } catch (err) {
+      console.error('Failed to send OTP:', err);
+      setOtpInfoMessage('Verification code generated. Please check server console or registered email.');
+    } finally {
+      setOtpSending(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,18 +133,65 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
 
       if (result.error || !result.user) {
         setErrorMessage(result.error || 'Authentication failed. Please check your credentials.');
-      } else {
-        if (selectedRole && result.user.role !== selectedRole) {
-          setErrorMessage(
-            `Credentials belong to an ${result.user.role === 'admin' ? 'Administrator' : 'Staff Coordinator'} account. Please sign in under the ${result.user.role === 'admin' ? 'System Admin' : 'Staff Coordinator'} portal.`
-          );
-          return;
-        }
-        onLoginSuccess(result.user);
+        return;
       }
+
+      if (selectedRole && result.user.role !== selectedRole) {
+        setErrorMessage(
+          `Credentials belong to an ${result.user.role === 'admin' ? 'Administrator' : 'Staff Coordinator'} account. Please sign in under the ${result.user.role === 'admin' ? 'System Admin' : 'Staff Coordinator'} portal.`
+        );
+        return;
+      }
+
+      const currentDeviceId = getDeviceFingerprint();
+      const knownDevices = result.user.known_device_ids || [];
+
+      // Secondary Authentication: trigger whenever login attempt occurs from a new, unrecognized device
+      if (!knownDevices.includes(currentDeviceId)) {
+        setPendingUser(result.user);
+        setShowOtpStep(true);
+        await sendOtpChallenge(result.user);
+        return;
+      }
+
+      onLoginSuccess(result.user);
     } catch {
       setLoading(false);
       setErrorMessage('An unexpected error occurred during login. Please try again.');
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingUser) return;
+
+    if (!otpInput.trim() || otpInput.trim().length !== 6) {
+      setErrorMessage('Please enter the full 6-digit verification code.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const verifyRes = await verifyOtpInFirestore(pendingUser.id, otpInput.trim());
+      if (!verifyRes.valid) {
+        setLoading(false);
+        setErrorMessage(verifyRes.error || 'Invalid verification code.');
+        return;
+      }
+
+      const currentDeviceId = getDeviceFingerprint();
+      await addKnownDeviceToUser(pendingUser.id, currentDeviceId).catch(() => {});
+      const updatedUser: UserProfile = {
+        ...pendingUser,
+        known_device_ids: [...(pendingUser.known_device_ids || []), currentDeviceId],
+      };
+
+      setLoading(false);
+      onLoginSuccess(updatedUser);
+    } catch {
+      setLoading(false);
+      setErrorMessage('Verification error. Please try again.');
     }
   };
 
@@ -116,8 +242,112 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
         <div className="p-6 sm:p-8">
           <AnimatePresence mode="wait">
             
-            {/* STEP 1: ROLE SELECTION */}
-            {selectedRole === null ? (
+            {/* STEP 3: OTP VERIFICATION FOR NEW DEVICE */}
+            {showOtpStep && pendingUser ? (
+              <motion.div
+                key="otp-verification-step"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="space-y-5"
+              >
+                <div className="flex items-center space-x-3 bg-indigo-50 p-3.5 rounded-xl border border-indigo-100">
+                  <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900">
+                      New Device Verification
+                    </h3>
+                    <p className="text-[11px] text-slate-600">
+                      Security check required for <strong>{pendingUser.email}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                {otpInfoMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-blue-50 text-blue-900 p-3 rounded-xl border border-blue-200 text-xs flex items-start space-x-2"
+                  >
+                    <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{otpInfoMessage}</span>
+                  </motion.div>
+                )}
+
+                {errorMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-rose-50 text-rose-800 p-3.5 rounded-xl border border-rose-200 text-xs font-medium flex items-center space-x-2"
+                  >
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </motion.div>
+                )}
+
+                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 text-center">
+                      Enter 6-Digit One-Time Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      autoFocus
+                      required
+                      value={otpInput}
+                      onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="••••••"
+                      className="w-full text-center font-mono text-2xl font-bold tracking-[0.4em] py-3 bg-slate-50 border-2 border-indigo-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none transition-all"
+                    />
+                    <p className="text-[11px] text-slate-400 text-center mt-1.5">
+                      Code expires in 10 minutes. Check your registered email.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || otpInput.trim().length !== 6}
+                    className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-xs transition-colors flex items-center justify-center space-x-2 ${
+                      loading || otpInput.trim().length !== 6
+                        ? 'bg-slate-300 cursor-not-allowed'
+                        : 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
+                    }`}
+                  >
+                    {loading ? (
+                      <span>Validating Security Code...</span>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Verify &amp; Authorize Device</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <button
+                      type="button"
+                      disabled={otpSending}
+                      onClick={() => sendOtpChallenge(pendingUser)}
+                      className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center space-x-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${otpSending ? 'animate-spin' : ''}`} />
+                      <span>{otpSending ? 'Resending Code...' : 'Resend Code'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleBackFromOtp}
+                      className="text-slate-500 hover:text-slate-800 font-medium cursor-pointer"
+                    >
+                      Cancel &amp; Sign In Again
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            ) : selectedRole === null ? (
               <motion.div
                 key="role-picker"
                 initial={{ opacity: 0, x: -10 }}

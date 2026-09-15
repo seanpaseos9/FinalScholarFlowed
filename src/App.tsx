@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ShieldAlert } from 'lucide-react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { PortalSelection } from './components/portal/PortalSelection';
@@ -10,6 +11,10 @@ import { HelpGuideModal } from './components/common/HelpGuideModal';
 import {
   getStoredActiveUser,
   saveStoredActiveUser,
+  getStoredSessionToken,
+  saveStoredSessionToken,
+  getDisplacedSessionNotice,
+  setDisplacedSessionNotice,
 } from './lib/storage';
 import {
   seedFirestoreIfEmpty,
@@ -19,6 +24,8 @@ import {
   subscribeInterviews,
   subscribeUsers,
   saveScholarshipToFirestore,
+  updateScholarshipFreezeInFirestore,
+  updateUserSessionTokenInFirestore,
   deleteScholarshipFromFirestore,
   createApplicationInFirestore,
   updateApplicationInFirestore,
@@ -43,6 +50,7 @@ import { logEvent } from './lib/logger';
 
 export default function App() {
   const [activeUser, setActiveUser] = useState<UserProfile | null>(() => getStoredActiveUser());
+  const [displacedNotice, setDisplacedNotice] = useState<string | null>(() => getDisplacedSessionNotice());
   const [currentView, setCurrentView] = useState<'portal' | 'student' | 'login' | 'staff' | 'admin'>(() => {
     const user = getStoredActiveUser();
     const storedView = localStorage.getItem('scholarflow_current_view') as any;
@@ -178,6 +186,24 @@ export default function App() {
         if (!prev) return null;
         const freshUser = list.find((u) => u.id === prev.id);
         if (freshUser) {
+          const localSessionToken = getStoredSessionToken();
+          // Check for single device displacement: if server has an active token that doesn't match our local token
+          if (
+            freshUser.active_session_token &&
+            localSessionToken &&
+            freshUser.active_session_token !== localSessionToken
+          ) {
+            saveStoredSessionToken(null);
+            saveStoredActiveUser(null);
+            localStorage.removeItem('scholarflow_current_view');
+            const noticeMsg = 'Your session has ended because this account was accessed from another device.';
+            setDisplacedSessionNotice(noticeMsg);
+            setDisplacedNotice(noticeMsg);
+            setTimeout(() => {
+              setCurrentView('portal');
+            }, 0);
+            return null;
+          }
           saveStoredActiveUser(freshUser);
           return freshUser;
         }
@@ -194,9 +220,22 @@ export default function App() {
     };
   }, []);
 
-  const handleLoginSuccess = (user: UserProfile) => {
-    setActiveUser(user);
-    saveStoredActiveUser(user);
+  const handleLoginSuccess = async (user: UserProfile) => {
+    // Generate fresh session token for single device sessions
+    const sessionToken = `sess_${Math.random().toString(36).substring(2, 15)}_${Date.now().toString(36)}`;
+    saveStoredSessionToken(sessionToken);
+    setDisplacedSessionNotice(null);
+    setDisplacedNotice(null);
+
+    const userWithToken = { ...user, active_session_token: sessionToken };
+    setActiveUser(userWithToken);
+    saveStoredActiveUser(userWithToken);
+
+    // Save token to Firestore to invalidate previous sessions on other devices
+    updateUserSessionTokenInFirestore(user.id, sessionToken).catch((err) => {
+      console.warn('Could not record active session token to Firestore:', err);
+    });
+
     const targetView = user.role === 'admin' ? 'admin' : 'staff';
     changeView(targetView);
     logEvent('Security', 'Authentication', `User signed in: ${user.full_name} (${user.email}) — Role: ${user.role}`);
@@ -204,6 +243,7 @@ export default function App() {
 
   const handleLogout = () => {
     const currentUser = activeUser;
+    saveStoredSessionToken(null);
     setActiveUser(null);
     saveStoredActiveUser(null);
     localStorage.removeItem('scholarflow_current_view');
@@ -344,6 +384,16 @@ export default function App() {
           freeze_note: freezeRecord.is_active ? freezeRecord.announcement_note : undefined,
         };
         setScholarships((prev) => prev.map((item) => (item.id === s.id ? updated : item)));
+
+        // Explicitly clear freeze_note in Firestore using deleteField() on unfreeze
+        await updateScholarshipFreezeInFirestore(
+          s.id,
+          freezeRecord.is_active,
+          freezeRecord.is_active ? freezeRecord.announcement_note : undefined
+        ).catch((err) => {
+          console.warn('Firestore direct freeze update notice:', err);
+        });
+
         await syncSaveScholarship(updated);
       }
       logEvent(
@@ -477,6 +527,28 @@ export default function App() {
         onNavigate={handleNavigate}
         onOpenGuide={(tab) => setActiveGuideModal(tab)}
       />
+
+      {/* Displaced Session Notification Banner */}
+      {displacedNotice && (
+        <div className="bg-amber-500 text-slate-950 px-4 py-3 border-b border-amber-600 shadow-xs z-30 relative animate-in fade-in slide-in-from-top duration-300">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center space-x-2 text-xs font-bold">
+              <ShieldAlert className="w-4 h-4 text-slate-950 shrink-0" />
+              <span>{displacedNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDisplacedNotice(null);
+                setDisplacedSessionNotice(null);
+              }}
+              className="px-2.5 py-1 bg-slate-950 hover:bg-slate-900 text-white rounded-lg text-[11px] font-bold cursor-pointer transition-colors shadow-2xs shrink-0"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Page Views with responsive padding */}
       <main className="flex-1 w-full overflow-x-hidden">

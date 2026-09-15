@@ -12,8 +12,10 @@ import {
   setDoc,
   deleteDoc,
   setLogLevel,
+  deleteField,
 } from 'firebase/firestore';
 import fs from 'fs';
+import nodemailer from 'nodemailer';
 
 // Filter out benign Firestore gRPC idle stream notices from polluting server stderr
 const origStderrWrite = process.stderr.write.bind(process.stderr);
@@ -48,6 +50,25 @@ const firebaseApp = initializeApp(firebaseConfig, 'server-backend-app');
 const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 const PORT = 3000;
+
+// Nodemailer setup with graceful fallback to console logging
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+const smtpFrom = process.env.SMTP_FROM || '"ScholarFlow Security" <no-reply@scholarflow.edu>';
+
+const mailTransporter = smtpHost && smtpUser && smtpPass
+  ? nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    })
+  : null;
 
 async function startServer() {
   const app = express();
@@ -180,10 +201,24 @@ async function startServer() {
     }
   });
 
+  app.post('/api/scholarships', async (req, res) => {
+    try {
+      const id = req.body.id || `sch-${Date.now()}`;
+      const data = { ...req.body, id, created_at: req.body.created_at || new Date().toISOString() };
+      await setDoc(doc(db, 'scholarships', id), data);
+      res.status(201).json({ message: 'Scholarship created in Cloud Firestore', scholarship: data });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.put('/api/scholarships/:id', async (req, res) => {
     try {
       const id = req.params.id;
-      const data = { ...req.body, id };
+      const data: any = { ...req.body, id, updated_at: new Date().toISOString() };
+      if (!data.is_frozen || !data.freeze_note) {
+        data.freeze_note = deleteField();
+      }
       await setDoc(doc(db, 'scholarships', id), data, { merge: true });
       res.json({ message: 'Scholarship updated in Cloud Firestore', scholarship: data });
     } catch (error: any) {
@@ -195,6 +230,66 @@ async function startServer() {
     try {
       await deleteDoc(doc(db, 'scholarships', req.params.id));
       res.json({ message: `Scholarship ${req.params.id} deleted from Cloud Firestore` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // OTP Verification API for New Device Authentication
+  app.post('/api/send-otp', async (req, res) => {
+    try {
+      const { email, code, userName } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ error: 'Email and OTP code are required' });
+      }
+
+      console.log(`\n======================================================`);
+      console.log(`[ScholarFlow Device Auth] OTP generated for: ${email}`);
+      console.log(`Verification Code: [ ${code} ] (Valid for 10 minutes)`);
+      console.log(`======================================================\n`);
+
+      let emailSent = false;
+      if (mailTransporter) {
+        try {
+          await mailTransporter.sendMail({
+            from: smtpFrom,
+            to: email,
+            subject: 'ScholarFlow Security — New Device Verification Code',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                <h2 style="color: #0f172a; margin-bottom: 8px;">ScholarFlow Security Verification</h2>
+                <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+                  Hello ${userName || 'User'},<br/>
+                  A sign-in attempt was initiated from a new or unrecognized device for your ScholarFlow account.
+                </p>
+                <div style="background-color: #f1f5f9; padding: 18px; border-radius: 8px; text-align: center; margin: 24px 0;">
+                  <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5;">${code}</span>
+                </div>
+                <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
+                  This one-time verification code will expire in 10 minutes. If you did not initiate this sign-in attempt, please contact the administrator immediately.
+                </p>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+                <p style="color: #94a3b8; font-size: 11px; text-align: center;">
+                  ScholarFlow Operations Platform • Institutional Financial Aid System
+                </p>
+              </div>
+            `,
+          });
+          emailSent = true;
+          console.log(`[ScholarFlow OTP] Successfully delivered email to ${email}`);
+        } catch (mailErr) {
+          console.warn('[ScholarFlow OTP] Could not send via SMTP, code is logged to server console:', mailErr);
+        }
+      }
+
+      res.json({
+        success: true,
+        emailSent,
+        devCode: !emailSent ? code : undefined,
+        message: emailSent
+          ? `Verification code sent to ${email}`
+          : `Verification code generated for ${email} (check server console)`,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

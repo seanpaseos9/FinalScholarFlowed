@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Search, Clock, CheckCircle2, AlertCircle, Award, DollarSign, Calendar, FileText, UserCheck, ShieldCheck, Printer, XCircle, Eye } from 'lucide-react';
+import { Search, Clock, CheckCircle2, AlertCircle, Award, Calendar, FileText, UserCheck, ShieldCheck, Printer, XCircle, Eye } from 'lucide-react';
 import { Application, ApplicationStatus, ApplicationDocument } from '../../types';
 import { DocumentViewerModal } from '../common/DocumentViewerModal';
 

@@ -163,18 +163,6 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Header Right Action & User Controls */}
             <div className="flex items-center space-x-2 sm:space-x-3">
-              {/* If Logged Out: Only display Staff & Admin Sign In on the main portal gateway */}
-              {!activeUser && currentView === 'portal' && (
-                <div className="hidden sm:flex items-center space-x-2">
-                  <button
-                    onClick={() => handleNavClick('login')}
-                    className="flex items-center space-x-1.5 bg-slate-900 hover:bg-indigo-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-                  >
-                    <Shield className="w-3.5 h-3.5 text-indigo-300" />
-                    <span>Staff & Admin Sign In</span>
-                  </button>
-                </div>
-              )}
 
               {/* If Logged In: Active User Pill */}
               {activeUser && (
@@ -375,21 +363,6 @@ export const Header: React.FC<HeaderProps> = ({
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     </button>
 
-                    {!activeUser && (
-                      <button
-                        onClick={() => handleNavClick('login')}
-                        className="w-full flex items-center justify-between p-3.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-indigo-600 text-white transition-all text-left shadow-xs cursor-pointer"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Shield className="w-4 h-4 text-indigo-300" />
-                          <div>
-                            <p className="font-bold">Staff & Admin Sign In</p>
-                            <p className="text-[10px] font-normal text-slate-400">Institutional Faculty Access</p>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
-                      </button>
-                    )}
                   </div>
                 )}
               </div>

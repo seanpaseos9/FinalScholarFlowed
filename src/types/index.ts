@@ -8,6 +8,8 @@ export interface UserProfile {
   role: UserRole;
   title?: string;
   department?: string;
+  active_session_token?: string;
+  known_device_ids?: string[];
   created_at: string;
   updated_at?: string;
 }
