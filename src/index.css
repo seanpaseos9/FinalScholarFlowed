@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "./landingPage.css";
+
+html {
+  font-size: 16.5px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-size: 1rem;
+  line-height: 1.5;
+}
