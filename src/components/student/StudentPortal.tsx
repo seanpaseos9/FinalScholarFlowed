@@ -5,6 +5,7 @@ import { Scholarship, Application, FreezePeriod } from '../../types';
 import { ScholarshipCatalog, isDeadlinePassed } from './ScholarshipCatalog';
 import { ApplicationWizard } from './ApplicationWizard';
 import { StatusTracker } from './StatusTracker';
+import { StandardPagination } from '../common/StandardPagination';
 
 interface StudentPortalProps {
   scholarships: Scholarship[];
@@ -198,10 +199,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     setTrackerSearchCode(refCode);
   };
 
-  // Renewable scholarships list
+  // Renewable scholarships list & pagination
   const renewableScholarships = useMemo(() => {
     return scholarships.filter(s => s.is_renewable);
   }, [scholarships]);
+
+  const [renewalPage, setRenewalPage] = useState<number>(1);
+  const [renewalPageSize, setRenewalPageSize] = useState<number>(6);
+
+  const totalRenewalPages = Math.max(1, Math.ceil(renewableScholarships.length / renewalPageSize));
+
+  const paginatedRenewableScholarships = useMemo(() => {
+    const start = (renewalPage - 1) * renewalPageSize;
+    return renewableScholarships.slice(start, start + renewalPageSize);
+  }, [renewableScholarships, renewalPage, renewalPageSize]);
 
   // Renewal verification lookup state (Reference Number + Student ID/Email)
   const [renewalRefCode, setRenewalRefCode] = useState<string>('');
@@ -543,7 +554,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {renewableScholarships.map(s => (
+              {paginatedRenewableScholarships.map(s => (
                 <div
                   key={s.id}
                   className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
@@ -613,6 +624,21 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 </div>
               ))}
             </div>
+
+            {/* Standardized Pagination Controls matching image_ce8425.png */}
+            <StandardPagination
+              currentPage={renewalPage}
+              totalPages={totalRenewalPages}
+              totalItems={renewableScholarships.length}
+              pageSize={renewalPageSize}
+              pageSizeOptions={[6, 12, 24]}
+              itemLabel="scholarships"
+              onPageChange={(p) => setRenewalPage(p)}
+              onPageSizeChange={(sz) => {
+                setRenewalPageSize(sz);
+                setRenewalPage(1);
+              }}
+            />
           </div>
 
           {/* Renewal Policy & Guidelines Accordion */}

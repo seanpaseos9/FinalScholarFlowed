@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 
 export interface StandardPaginationProps {
   currentPage: number;
@@ -18,8 +18,8 @@ export const StandardPagination: React.FC<StandardPaginationProps> = ({
   totalPages,
   totalItems,
   pageSize,
-  pageSizeOptions = [6, 10, 20, 50],
-  itemLabel = 'items',
+  pageSizeOptions = [6, 12, 24],
+  itemLabel = 'scholarships',
   onPageChange,
   onPageSizeChange,
   className = '',
@@ -46,51 +46,61 @@ export const StandardPagination: React.FC<StandardPaginationProps> = ({
     return pages;
   };
 
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
+
   return (
     <div
-      className={`bg-white rounded-2xl border border-slate-200 p-3 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xs ${className}`}
+      className={`bg-white rounded-2xl border border-slate-200/90 px-4 py-3 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xs ${className}`}
     >
-      {/* Left side: Showing X–Y of Z items | Per page selector */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+      {/* Left side: Showing 1–6 of 7 scholarships | Per page: [6 items ⌄] */}
+      <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-500 font-normal">
         <span>
-          Showing <strong className="font-bold text-slate-900">{start}–{end}</strong> of{' '}
+          Showing <strong className="font-bold text-slate-800">{start}–{end}</strong> of{' '}
           <strong className="font-bold text-indigo-600">{totalItems}</strong> {itemLabel}
         </span>
 
         {onPageSizeChange && (
           <>
-            <span className="text-slate-300 font-light select-none">|</span>
-            <div className="flex items-center space-x-2">
-              <span className="text-slate-500 font-medium">Per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  onPageSizeChange(Number(e.target.value));
-                  onPageChange(1);
-                }}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors focus:ring-1 focus:ring-indigo-500 focus:outline-none cursor-pointer"
-              >
-                {pageSizeOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt} items
-                  </option>
-                ))}
-              </select>
+            <span className="text-slate-300 font-light mx-1 select-none">|</span>
+            <div className="flex items-center space-x-1.5">
+              <span className="text-slate-500 font-normal">Per page:</span>
+              <div className="relative inline-flex items-center">
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    onPageSizeChange(Number(e.target.value));
+                    onPageChange(1);
+                  }}
+                  className="appearance-none bg-white border border-slate-200 rounded-xl pl-3 pr-7 py-1 text-xs font-semibold text-slate-700 hover:border-slate-300 transition-colors focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                >
+                  {pageSizeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt} items
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-600 absolute right-2 pointer-events-none stroke-[2.5]" />
+              </div>
             </div>
           </>
         )}
       </div>
 
-      {/* Right side: Prev button, page number pills, Next button */}
-      <div className="flex items-center space-x-1.5 select-none">
+      {/* Right side: < Prev  (1)  2   Next > */}
+      <div className="flex items-center space-x-2 select-none">
         <button
           type="button"
-          disabled={currentPage <= 1}
-          onClick={() => onPageChange(currentPage - 1)}
-          className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          disabled={!hasPrev}
+          onClick={() => hasPrev && onPageChange(currentPage - 1)}
+          className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border text-xs transition-colors ${
+            hasPrev
+              ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold cursor-pointer'
+              : 'border-slate-100 bg-white text-slate-300 cursor-not-allowed font-normal'
+          }`}
           title="Previous page"
         >
-          <ChevronLeft className="w-3.5 h-3.5" />
+          <ChevronLeft className={`w-3.5 h-3.5 ${hasPrev ? 'text-slate-600' : 'text-slate-300'}`} />
           <span>Prev</span>
         </button>
 
@@ -109,10 +119,10 @@ export const StandardPagination: React.FC<StandardPaginationProps> = ({
               key={`page-${pageNum}`}
               type="button"
               onClick={() => onPageChange(pageNum)}
-              className={`min-w-[28px] h-7 px-2 flex items-center justify-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium'
+                  ? 'rounded-full bg-indigo-600 text-white font-bold shadow-xs'
+                  : 'rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium'
               }`}
             >
               {pageNum}
@@ -122,13 +132,17 @@ export const StandardPagination: React.FC<StandardPaginationProps> = ({
 
         <button
           type="button"
-          disabled={currentPage >= totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-          className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          disabled={!hasNext}
+          onClick={() => hasNext && onPageChange(currentPage + 1)}
+          className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border text-xs transition-colors ${
+            hasNext
+              ? 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50 font-bold cursor-pointer'
+              : 'border-slate-100 bg-white text-slate-300 cursor-not-allowed font-normal'
+          }`}
           title="Next page"
         >
           <span>Next</span>
-          <ChevronRight className="w-3.5 h-3.5" />
+          <ChevronRight className={`w-3.5 h-3.5 ${hasNext ? 'text-slate-700' : 'text-slate-300'}`} />
         </button>
       </div>
     </div>
