@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function isValidScholarship(data) {
+      return data.id is string &&
+             data.title is string && data.title.size() <= 200 &&
+             data.code is string && data.code.size() <= 50 &&
+             data.category in ['Academic', 'Financial', 'Athletic', 'Alumni', 'Industry', 'Leadership'] &&
+             data.slots is number && data.slots >= 0 &&
+             data.slots_remaining is number && data.slots_remaining >= 0 &&
+             data.grant_amount is number && data.grant_amount >= 0 &&
+             data.is_active is bool &&
+             data.is_frozen is bool;
+    }
+
+    function isValidApplication(data) {
+      return data.id is string &&
+             data.reference_code is string && data.reference_code.size() <= 50 &&
+             data.scholarship_id is string &&
+             data.student_number is string && data.student_number.size() <= 50 &&
+             data.first_name is string && data.first_name.size() <= 100 &&
+             data.last_name is string && data.last_name.size() <= 100 &&
+             data.email is string && data.email.size() <= 150 &&
+             data.status in ['Pending', 'In Review', 'Shortlisted', 'Approved', 'Rejected', 'For Renewal', 'Expired', 'Removed'];
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection testing
+    match /test/{testId} {
+      allow read: if true;
+    }
+
+    // System Settings & Branding
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId);
+    }
+
+    // Scholarships: Publicly readable for students and applicants; writable with schema validation
+    match /scholarships/{scholarshipId} {
+      allow read: if true;
+      allow create, update: if isValidId(scholarshipId) && isValidScholarship(request.resource.data);
+      allow delete: if isValidId(scholarshipId);
+    }
+
+    // Applications: Students create submissions; applicants and reviewers read; staff update reviews & manage records
+    match /applications/{applicationId} {
+      allow read: if true;
+      allow create, update: if isValidId(applicationId);
+      allow delete: if isValidId(applicationId);
+    }
+
+    // Freeze Periods: Emergency freeze notices
+    match /freeze_periods/{freezeId} {
+      allow read: if true;
+      allow create, update, delete: if isValidId(freezeId);
+    }
+
+    // Interview Schedules
+    match /interviews/{interviewId} {
+      allow read: if true;
+      allow create, update, delete: if isValidId(interviewId);
+    }
+
+    // Users (Staff and Admin records)
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isValidId(userId);
+      allow delete: if isValidId(userId);
+    }
+  }
+}
