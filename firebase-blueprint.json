@@ -26,7 +26,7 @@
         },
         "category": {
           "type": "string",
-          "enum": ["Academic", "Financial", "Athletic", "Alumni", "Industry", "Leadership"]
+          "enum": ["Academic", "Financial", "Athletic", "Alumni", "Industry", "Leadership", "Performing Arts", "Research", "Community"]
         },
         "slots": {
           "type": "number",
@@ -253,6 +253,9 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/userProfile" },
       "description": "System staff and administrator accounts"
+    },
+    "/staff_applications/{applicationId}": {
+      "description": "Staff account applications awaiting administrative review"
     }
   }
 }

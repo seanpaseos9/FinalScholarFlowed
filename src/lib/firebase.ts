@@ -8,7 +8,6 @@ import {
   setDoc,
   deleteDoc,
   onSnapshot,
-  writeBatch,
   setLogLevel,
   deleteField,
 } from 'firebase/firestore';
@@ -162,34 +161,32 @@ export async function seedFirestoreIfEmpty(): Promise<void> {
     const snap = await getDocs(collection(db, path));
     if (snap.empty) {
       console.log('Seeding initial records into Cloud Firestore database...');
-      const batch = writeBatch(db);
 
-      // Seed default scholarships
-      for (const sch of INITIAL_SCHOLARSHIPS) {
-        batch.set(doc(db, COLLECTIONS.SCHOLARSHIPS, sch.id), sch);
-      }
+      // Use individual writes instead of a single batch so that a rules
+      // rejection on one collection doesn't block the others from landing.
+      const writeIndividual = async (
+        collectionName: string,
+        records: any[],
+        label: string
+      ) => {
+        let ok = 0;
+        for (const record of records) {
+          try {
+            await setDoc(doc(db, collectionName, record.id), record);
+            ok++;
+          } catch (err) {
+            console.warn(`Seed write failed (${label}/${record.id}):`, err);
+          }
+        }
+        console.log(`Seeded ${ok}/${records.length} ${label} records.`);
+      };
 
-      // Seed initial applications
-      for (const appItem of INITIAL_APPLICATIONS) {
-        batch.set(doc(db, COLLECTIONS.APPLICATIONS, appItem.id), appItem);
-      }
+      await writeIndividual(COLLECTIONS.SCHOLARSHIPS, INITIAL_SCHOLARSHIPS, 'scholarships');
+      await writeIndividual(COLLECTIONS.APPLICATIONS, INITIAL_APPLICATIONS, 'applications');
+      await writeIndividual(COLLECTIONS.INTERVIEWS, INITIAL_INTERVIEWS, 'interviews');
+      await writeIndividual(COLLECTIONS.USERS, INITIAL_FACULTY_ACCOUNTS, 'users');
+      await writeIndividual(COLLECTIONS.STAFF_APPLICATIONS, INITIAL_STAFF_APPLICATIONS, 'staff_applications');
 
-      // Seed initial interviews
-      for (const interview of INITIAL_INTERVIEWS) {
-        batch.set(doc(db, COLLECTIONS.INTERVIEWS, interview.id), interview);
-      }
-
-      // Seed staff & admin accounts (passwords are SHA-256 hashes, never plaintext)
-      for (const userAcc of INITIAL_FACULTY_ACCOUNTS) {
-        batch.set(doc(db, COLLECTIONS.USERS, userAcc.id), userAcc);
-      }
-
-      // Seed initial staff applications
-      for (const staffApp of INITIAL_STAFF_APPLICATIONS) {
-        batch.set(doc(db, COLLECTIONS.STAFF_APPLICATIONS, staffApp.id), staffApp);
-      }
-
-      await batch.commit();
       console.log('Initial records seeded into Cloud Firestore successfully.');
     } else {
       // Check if users collection specifically needs seeding

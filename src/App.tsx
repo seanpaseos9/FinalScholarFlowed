@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Database, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { LandingPage } from './components/portal/LandingPage';
@@ -138,6 +138,7 @@ export default function App() {
   const [interviews, setInterviews] = useState<InterviewSchedule[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [staffApplications, setStaffApplications] = useState<StaffApplication[]>(INITIAL_STAFF_APPLICATIONS);
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
 
   /**
    * Computes remaining scholarship slots accurately based on the actual recorded
@@ -253,9 +254,12 @@ export default function App() {
     setActiveUser(loadedUser);
 
     // Automatically seed Cloud Firestore database if collections are empty
-    seedFirestoreIfEmpty().catch((err) => {
-      console.warn('Initial Firestore setup notice:', err);
-    });
+    seedFirestoreIfEmpty()
+      .then(() => setDbConnected(true))
+      .catch((err) => {
+        console.warn('Initial Firestore setup notice:', err);
+        setDbConnected(false);
+      });
 
     // Initial Fetch from backend REST API (fast immediate bootstrap)
     fetchAllBackendData().then((backendData) => {
@@ -847,6 +851,41 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-600 selection:text-white overflow-x-hidden w-full">
+
+      {/* Database Connection Status Indicator */}
+      <div className="fixed bottom-4 left-4 z-[9998] pointer-events-auto">
+        <div
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg border text-xs font-bold backdrop-blur-md transition-all ${
+            dbConnected === null
+              ? 'bg-slate-100/90 text-slate-600 border-slate-200'
+              : dbConnected
+              ? 'bg-emerald-50/90 text-emerald-700 border-emerald-200'
+              : 'bg-rose-50/90 text-rose-700 border-rose-200'
+          }`}
+          title={
+            dbConnected === null
+              ? 'Connecting to database...'
+              : dbConnected
+              ? 'Connected to Cloud Firestore — data is live'
+              : 'Database connection failed — check Firestore rules and configuration'
+          }
+        >
+          {dbConnected === null ? (
+            <Database className="w-3.5 h-3.5 animate-pulse" />
+          ) : dbConnected ? (
+            <CheckCircle2 className="w-3.5 h-3.5" />
+          ) : (
+            <AlertTriangle className="w-3.5 h-3.5" />
+          )}
+          <span>
+            {dbConnected === null
+              ? 'Connecting...'
+              : dbConnected
+              ? 'Database Connected'
+              : 'Database Offline'}
+          </span>
+        </div>
+      </div>
       
       {/* Universal Responsive Header — shown on all views except full-bleed portal landing page */}
       {currentView !== 'portal' && (

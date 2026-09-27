@@ -11,7 +11,7 @@ service cloud.firestore {
       return data.id is string &&
              data.title is string && data.title.size() <= 200 &&
              data.code is string && data.code.size() <= 50 &&
-             data.category in ['Academic', 'Financial', 'Athletic', 'Alumni', 'Industry', 'Leadership'] &&
+             data.category in ['Academic', 'Financial', 'Athletic', 'Alumni', 'Industry', 'Leadership', 'Performing Arts', 'Research', 'Community'] &&
              data.slots is number && data.slots >= 0 &&
              data.slots_remaining is number && data.slots_remaining >= 0 &&
              data.grant_amount is number && data.grant_amount >= 0 &&
@@ -77,6 +77,13 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isValidId(userId);
       allow delete: if isValidId(userId);
+    }
+
+    // Staff account applications
+    match /staff_applications/{applicationId} {
+      allow read: if true;
+      allow create, update: if isValidId(applicationId);
+      allow delete: if isValidId(applicationId);
     }
   }
 }
