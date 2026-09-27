@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import defaultLogo from '../../assets/images/scholarflow_LOGO.png';
+import React from 'react';
+import { SchoolMonogram } from './CrestLogo';
 
 interface ScholarFlowLogoProps {
   className?: string;
@@ -22,36 +22,12 @@ export const ScholarFlowLogo: React.FC<ScholarFlowLogoProps> = ({
   variant = 'transparent',
   showBorder = false,
 }) => {
-  const [customLogo, setCustomLogo] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('scholarflow_custom_logo') || null;
-    } catch {
-      return null;
-    }
-  });
-  const [imgError, setImgError] = useState(false);
-
-  useEffect(() => {
-    // Check if a persisted logo exists in Cloud Firestore or server branding
-    fetch('/api/branding')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.logoBase64) {
-          setCustomLogo(data.logoBase64);
-          setImgError(false);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   const containerBg =
     variant === 'dark'
       ? 'bg-slate-900 border-slate-800'
       : variant === 'light'
       ? 'bg-white border-slate-200'
       : 'bg-transparent border-transparent';
-
-  const logoSrc = customLogo && !imgError ? customLogo : defaultLogo;
 
   return (
     <div
@@ -60,17 +36,7 @@ export const ScholarFlowLogo: React.FC<ScholarFlowLogoProps> = ({
         showBorder ? 'border shadow-2xs' : ''
       } ${containerBg} ${sizeMap[size]} ${className}`}
     >
-      <img
-        src={logoSrc}
-        alt="Meridian University Official Seal"
-        referrerPolicy="no-referrer"
-        onError={() => {
-          if (customLogo && !imgError) {
-            setImgError(true);
-          }
-        }}
-        className="w-full h-full object-contain select-none"
-      />
+      <SchoolMonogram size={size} />
     </div>
   );
 };

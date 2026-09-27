@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShieldAlert, Database, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { LandingPage } from './components/portal/LandingPage';
@@ -852,41 +852,6 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-600 selection:text-white overflow-x-hidden w-full">
 
-      {/* Database Connection Status Indicator */}
-      <div className="fixed bottom-4 left-4 z-[9998] pointer-events-auto">
-        <div
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg border text-xs font-bold backdrop-blur-md transition-all ${
-            dbConnected === null
-              ? 'bg-slate-100/90 text-slate-600 border-slate-200'
-              : dbConnected
-              ? 'bg-emerald-50/90 text-emerald-700 border-emerald-200'
-              : 'bg-rose-50/90 text-rose-700 border-rose-200'
-          }`}
-          title={
-            dbConnected === null
-              ? 'Connecting to database...'
-              : dbConnected
-              ? 'Connected to Cloud Firestore — data is live'
-              : 'Database connection failed — check Firestore rules and configuration'
-          }
-        >
-          {dbConnected === null ? (
-            <Database className="w-3.5 h-3.5 animate-pulse" />
-          ) : dbConnected ? (
-            <CheckCircle2 className="w-3.5 h-3.5" />
-          ) : (
-            <AlertTriangle className="w-3.5 h-3.5" />
-          )}
-          <span>
-            {dbConnected === null
-              ? 'Connecting...'
-              : dbConnected
-              ? 'Database Connected'
-              : 'Database Offline'}
-          </span>
-        </div>
-      </div>
-      
       {/* Universal Responsive Header — shown on all views except full-bleed portal landing page */}
       {currentView !== 'portal' && (
         <Header
@@ -900,10 +865,10 @@ export default function App() {
         />
       )}
 
-      {/* Displaced Session Notification Popup Toast (Positioned on the right side of screen) */}
+      {/* Centered notice for sessions invalidated on another device */}
       {displacedNotice && (
-        <div className="fixed top-5 right-5 sm:right-6 z-[9999] w-[calc(100%-2.5rem)] max-w-md animate-in fade-in slide-in-from-right-4 duration-300 pointer-events-auto">
-          <div className="bg-amber-500/95 backdrop-blur-md text-slate-950 px-4 sm:px-5 py-3.5 rounded-2xl shadow-2xl border-2 border-amber-600/80 flex items-center justify-between gap-3">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+          <div role="alert" className="w-full max-w-md animate-in fade-in zoom-in-95 duration-300 pointer-events-auto bg-amber-500/95 backdrop-blur-md text-slate-950 px-4 sm:px-5 py-3.5 rounded-2xl shadow-2xl border-2 border-amber-600/80 flex items-center justify-between gap-3">
             <div className="flex items-center space-x-2.5 text-xs sm:text-sm font-bold min-w-0">
               <ShieldAlert className="w-5 h-5 text-slate-950 shrink-0" />
               <span className="leading-snug">{displacedNotice}</span>
@@ -928,11 +893,9 @@ export default function App() {
           <LandingPage
             scholarships={accurateScholarships}
             applications={applications}
-            activeUser={activeUser}
             onNavigate={handleNavigate}
             onOpenGuide={(tab) => setActiveGuideModal(tab)}
             onApplyScholarship={handleApplyScholarshipFromLanding}
-            onLogout={requestLogout}
           />
         )}
 

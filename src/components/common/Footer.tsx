@@ -35,11 +35,8 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Col 1: About */}
           <div className="space-y-4">
-            <div
-              onClick={() => handleNav('portal')}
-              className="flex items-center space-x-3 cursor-pointer group"
-            >
-              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center p-1 shadow-2xs group-hover:border-indigo-400">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center p-1 shadow-2xs">
                 <ScholarFlowLogo size="sm" />
               </div>
               <span className="text-lg font-bold text-white tracking-tight">

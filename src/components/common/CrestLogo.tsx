@@ -2,11 +2,16 @@ import React from 'react';
 
 interface CrestLogoProps {
   className?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   showLabel?: boolean;
 }
 
 const sizeStyles = {
+  xs: {
+    container: 'w-5 h-5',
+    inner: 'w-3.5 h-3.5 text-[8px]',
+    star: 'text-[6px] -right-0.5 -bottom-0.5',
+  },
   sm: {
     container: 'w-7 h-8',
     inner: 'w-5 h-5 text-[10px]',
@@ -29,40 +34,44 @@ const sizeStyles = {
   },
 };
 
+export const SchoolMonogram: React.FC<{ size: keyof typeof sizeStyles }> = ({ size }) => {
+  const styles = sizeStyles[size];
+
+  return (
+    <div
+      className={`relative grid place-items-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-800 shadow-md ${styles.container}`}
+      style={{
+        clipPath: 'polygon(50% 0%, 92% 15%, 88% 72%, 50% 100%, 12% 72%, 8% 15%)',
+      }}
+      role="img"
+      aria-label="Meridian University M crest"
+    >
+      <div
+        className="absolute inset-[3px] border border-white/50 pointer-events-none"
+        style={{
+          clipPath: 'polygon(50% 0%, 92% 15%, 88% 72%, 50% 100%, 12% 72%, 8% 15%)',
+        }}
+      />
+      <div
+        className={`grid place-items-center border border-white/80 rounded-full text-white font-serif font-bold select-none ${styles.inner}`}
+      >
+        M
+      </div>
+      <span className={`absolute text-emerald-200 select-none ${styles.star}`}>
+        ✦
+      </span>
+    </div>
+  );
+};
+
 export const CrestLogo: React.FC<CrestLogoProps> = ({
   className = '',
   size = 'md',
   showLabel = false,
 }) => {
-  const styles = sizeStyles[size];
-
   return (
     <div className={`inline-flex items-center space-x-2.5 ${className}`}>
-      <div
-        className={`relative grid place-items-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-800 shadow-md ${styles.container}`}
-        style={{
-          clipPath: 'polygon(50% 0%, 92% 15%, 88% 72%, 50% 100%, 12% 72%, 8% 15%)',
-        }}
-        aria-label="Meridian MMSU Institutional Crest"
-      >
-        {/* Inner border line */}
-        <div
-          className="absolute inset-[3px] border border-white/50 pointer-events-none"
-          style={{
-            clipPath: 'polygon(50% 0%, 92% 15%, 88% 72%, 50% 100%, 12% 72%, 8% 15%)',
-          }}
-        />
-        {/* Circular inner ring with "M" */}
-        <div
-          className={`grid place-items-center border border-white/80 rounded-full text-white font-serif font-bold select-none ${styles.inner}`}
-        >
-          M
-        </div>
-        {/* Crest star accent */}
-        <span className={`absolute text-emerald-200 select-none ${styles.star}`}>
-          ✦
-        </span>
-      </div>
+      <SchoolMonogram size={size} />
 
       {showLabel && (
         <div className="flex flex-col text-left">

@@ -2543,7 +2543,7 @@
 /* Responsive Breakpoints */
 @media (max-width: 1024px) {
   .site-shell .container { width: min(calc(100% - 36px), 820px); }
-  .site-shell .header-inner { min-height: 74px; }
+  .site-shell .header-inner { min-height: 74px; height: 74px; gap: 16px; }
   .site-shell .main-nav {
     position: absolute;
     top: 74px;

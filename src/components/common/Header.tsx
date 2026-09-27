@@ -64,21 +64,18 @@ export const Header: React.FC<HeaderProps> = ({
     <>
       {/* Main Navigation Header - Identical height (86px), styling, and alignment as Landing Page */}
       <header
-        className="sticky top-0 z-40 w-full text-white select-none transition-colors"
+        className="sticky top-0 z-40 w-full h-16 sm:h-[74px] xl:h-[86px] text-white select-none transition-colors"
         style={{
-          minHeight: '86px',
-          height: '86px',
           background: 'linear-gradient(117deg, #091024 0%, #10192f 50%, #151c42 100%)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.11)',
           boxSizing: 'border-box',
         }}
       >
         <div
-          className="mx-auto flex items-center justify-between gap-6"
+          className="mx-auto flex items-center justify-between gap-2 sm:gap-4 xl:gap-6 h-full"
           style={{
-            width: 'min(1180px, calc(100% - 48px))',
+            width: 'min(1180px, calc(100% - 32px))',
             maxWidth: '100%',
-            height: '86px',
             boxSizing: 'border-box',
           }}
         >
@@ -93,17 +90,17 @@ export const Header: React.FC<HeaderProps> = ({
                   onNavigate('portal');
                 }
               }}
-              className="inline-flex items-center gap-3 bg-transparent text-white text-left cursor-pointer border-none p-0 shrink-0 group"
+              className="inline-flex items-center gap-2 sm:gap-3 bg-transparent text-white text-left cursor-pointer border-none p-0 min-w-0 max-w-full group"
               aria-label="Meridian University Home"
             >
               <CrestLogo size="md" />
-              <span className="flex flex-col gap-0.5">
+              <span className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <strong className="text-white text-[15px] font-bold tracking-tight leading-none font-sans">
+                  <strong className="text-white text-[13px] sm:text-[15px] font-bold tracking-tight leading-none font-sans truncate">
                     Meridian University
                   </strong>
                   <span
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase border shrink-0 ${
+                    className={`hidden min-[420px]:inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded uppercase border shrink-0 ${
                       currentView === 'student'
                         ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
                         : currentView === 'admin'
@@ -122,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
                       : 'PORTAL'}
                   </span>
                 </div>
-                <small className="text-[#9aa7c9] text-[9px] font-bold tracking-wide uppercase leading-tight hidden sm:block">
+                <small className="text-[#9aa7c9] text-[9px] font-bold tracking-wide uppercase leading-tight hidden xl:block">
                   Office of Student Financial Assistance · Meridian University
                 </small>
               </span>
@@ -130,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* 2. Center: Primary Navigation Links */}
-          <nav className="hidden lg:flex items-center justify-center gap-6 shrink-0 text-xs font-bold text-[#aeb9d4]">
+          <nav className="hidden xl:flex items-center justify-center gap-6 shrink-0 text-xs font-bold text-[#aeb9d4]">
             {/* Staff Coordinator Navigation: Centered Workspace Badge Only */}
             {currentView === 'staff' && (
               <div className="flex items-center justify-center">
@@ -160,10 +157,10 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* 3. Far Right: Actions, User Profile & Logout */}
-          <div className="flex-1 flex items-center justify-end min-w-0 gap-3">
+          <div className="flex-none xl:flex-1 flex items-center justify-end min-w-0 gap-2 sm:gap-3">
             {/* Student Portal: "Eligibility Guide" and "Help & FAQ" pushed to the right directly beside "Portal Home" */}
             {currentView === 'student' && (
-              <div className="hidden lg:flex items-center gap-5">
+              <div className="hidden xl:flex items-center gap-5">
                 <button
                   type="button"
                   onClick={() => handleGuideClick('requirements')}
@@ -190,27 +187,12 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {/* Mobile / fallback Portal Home button on student view if on smaller screens */}
-            {currentView === 'student' && (
-              <div className="lg:hidden">
-                <button
-                  type="button"
-                  onClick={() => handleNavClick('portal')}
-                  className="inline-flex items-center justify-center gap-2 h-[38px] min-h-[38px] max-h-[38px] px-4 rounded-[9px] text-[11px] font-extrabold text-[#e4e9fa] bg-white/8 hover:bg-white/16 border border-white/16 transition-all cursor-pointer shadow-2xs box-border leading-none"
-                  title="Return to Meridian University Public Portal"
-                >
-                  <Home className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Portal Home</span>
-                </button>
-              </div>
-            )}
-
             {/* Login Gateway Portal Home button */}
             {currentView === 'login' && (
               <button
                 type="button"
                 onClick={() => handleNavClick('portal')}
-                className="inline-flex items-center justify-center gap-2 h-[38px] min-h-[38px] max-h-[38px] px-4 rounded-[9px] text-[11px] font-extrabold text-[#e4e9fa] bg-white/8 hover:bg-white/16 border border-white/16 transition-all cursor-pointer shadow-2xs box-border leading-none"
+                className="hidden xl:inline-flex items-center justify-center gap-2 h-[38px] min-h-[38px] max-h-[38px] px-4 rounded-[9px] text-[11px] font-extrabold text-[#e4e9fa] bg-white/8 hover:bg-white/16 border border-white/16 transition-all cursor-pointer shadow-2xs box-border leading-none"
                 title="Return to Meridian University Public Portal"
               >
                 <Home className="w-3.5 h-3.5 text-indigo-400" />
@@ -224,7 +206,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenNotifications}
                 title="View System Notifications & Updates"
-                className="relative inline-flex items-center justify-center w-[38px] h-[38px] rounded-[10px] bg-white/8 hover:bg-white/16 border border-white/16 text-indigo-300 hover:text-white transition-all cursor-pointer shadow-2xs"
+                className="relative hidden xl:inline-flex items-center justify-center w-[38px] h-[38px] rounded-[10px] bg-white/8 hover:bg-white/16 border border-white/16 text-indigo-300 hover:text-white transition-all cursor-pointer shadow-2xs"
               >
                 <Bell className="w-4 h-4" />
                 {unreadNotificationsCount > 0 && (
@@ -237,7 +219,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* When Logged In as Staff or Admin: User Profile Pill & Logout (No Portal Home) */}
             {activeUser && (currentView === 'staff' || currentView === 'admin') && (
-              <div className="flex items-center gap-2.5 bg-white/8 px-3 py-1 rounded-[10px] border border-white/15 h-[38px] box-border">
+              <div className="hidden xl:flex items-center gap-2.5 bg-white/8 px-3 py-1 rounded-[10px] border border-white/15 h-[38px] box-border">
                 <div className="w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs bg-indigo-600 text-white shrink-0">
                   {activeUser.role === 'admin' ? (
                     <Shield className="w-3.5 h-3.5 text-white" />
@@ -269,7 +251,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 border border-white/15 transition-colors cursor-pointer"
+              className="xl:hidden p-2 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 border border-white/15 transition-colors cursor-pointer"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -281,7 +263,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Responsive Slide-out Mobile & Tablet Navigation Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
+          <div className="fixed inset-0 z-50 xl:hidden flex justify-end">
             {/* Backdrop Blur Overlay */}
             <motion.div
               initial={{ opacity: 0 }}

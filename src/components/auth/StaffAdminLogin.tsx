@@ -12,7 +12,6 @@ import {
   Eye,
   EyeOff,
   UserPlus,
-  Search,
 } from 'lucide-react';
 import {
   authenticateUserWithFirestore,
@@ -163,7 +162,7 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
       </div>
 
       {/* Relocated Prominent Back to Portal Home Navigation Bar */}
-      <div className="relative z-10 max-w-lg w-full mx-auto mb-3 flex items-center justify-between">
+      <div className="relative z-10 max-w-lg w-full mx-auto mb-3 flex items-center justify-start">
         <button
           type="button"
           onClick={selectedRole !== null ? handleBackToRolePicker : onBackToPortal}
@@ -174,15 +173,6 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
           <span>{selectedRole !== null ? 'Back to Role Selection' : 'Back to Portal Home'}</span>
         </button>
 
-        {/* Quick Link to Track Application */}
-        <button
-          type="button"
-          onClick={() => setIsTrackerOpen(true)}
-          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-indigo-300 hover:text-white bg-indigo-950/70 hover:bg-indigo-900/90 backdrop-blur-md px-3.5 py-2 rounded-xl transition border border-indigo-700/60 shadow-md cursor-pointer"
-        >
-          <Search className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Track Application Status</span>
-        </button>
       </div>
 
       <motion.div

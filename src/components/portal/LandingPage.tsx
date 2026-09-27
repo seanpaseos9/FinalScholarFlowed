@@ -21,9 +21,8 @@ import {
   UploadCloud,
   Users,
   X,
-  LogOut,
 } from 'lucide-react';
-import { Scholarship, Application, UserProfile } from '../../types';
+import { Scholarship, Application } from '../../types';
 import { ScholarFlowLogo } from '../common/ScholarFlowLogo';
 import { CrestLogo } from '../common/CrestLogo';
 import { INITIAL_SCHOLARSHIPS } from '../../data/initialData';
@@ -32,11 +31,9 @@ import { isDeadlinePassed } from '../student/ScholarshipCatalog';
 interface LandingPageProps {
   scholarships: Scholarship[];
   applications: Application[];
-  activeUser: UserProfile | null;
   onNavigate: (view: 'portal' | 'student' | 'login' | 'staff' | 'admin', tab?: 'catalog' | 'renewal' | 'tracker') => void;
   onOpenGuide: (tab: 'requirements' | 'faq') => void;
   onApplyScholarship: (scholarship: Scholarship) => void;
-  onLogout?: () => void;
 }
 
 const imageSources = {
@@ -252,11 +249,9 @@ function ArrowUpRightIcon() {
 export const LandingPage: React.FC<LandingPageProps> = ({
   scholarships,
   applications,
-  activeUser,
   onNavigate,
   onOpenGuide,
   onApplyScholarship,
-  onLogout,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<(typeof news)[number] | null>(null);
@@ -338,85 +333,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <span>Apply for Scholarship</span>
                 <ArrowRight size={14} />
               </button>
-              {activeUser ? (
-                <>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onNavigate(activeUser.role === 'admin' ? 'admin' : 'staff');
-                    }}
-                    className="mobile-drawer-login"
-                  >
-                    <LockKeyhole size={14} />
-                    <span>{activeUser.role === 'admin' ? 'Admin Workspace' : 'Staff Workspace'}</span>
-                  </button>
-                  {onLogout && (
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onLogout();
-                      }}
-                      className="mobile-drawer-login"
-                      style={{ color: '#f87171' }}
-                    >
-                      <LogOut size={14} />
-                      <span>Log Out</span>
-                    </button>
-                  )}
-                </>
-              ) : (
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onNavigate('login');
-                  }}
-                  className="mobile-drawer-login"
-                >
-                  <LockKeyhole size={14} />
-                  <span>Staff &amp; Admin Sign In</span>
-                </button>
-              )}
-            </div>
-          </nav>
-
-          <div className="header-actions">
-            {activeUser ? (
-              <>
-                <button
-                  type="button"
-                  className="header-btn header-btn-signin"
-                  onClick={() => onNavigate(activeUser.role === 'admin' ? 'admin' : 'staff')}
-                >
-                  <LockKeyhole size={14} />
-                  <span>{activeUser.role === 'admin' ? 'Admin Workspace' : 'Staff Workspace'}</span>
-                </button>
-                {onLogout && (
-                  <button
-                    type="button"
-                    className="header-btn"
-                    style={{
-                      backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                      color: '#fca5a5',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                    }}
-                    onClick={onLogout}
-                    title="Sign Out"
-                  >
-                    <LogOut size={14} />
-                    <span>Log Out</span>
-                  </button>
-                )}
-              </>
-            ) : (
               <button
-                type="button"
-                className="header-btn header-btn-signin"
-                onClick={() => onNavigate('login')}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigate('login');
+                }}
+                className="mobile-drawer-login"
               >
                 <LockKeyhole size={14} />
                 <span>Staff &amp; Admin Sign In</span>
               </button>
-            )}
+            </div>
+          </nav>
+
+          <div className="header-actions">
+            <button
+              type="button"
+              className="header-btn header-btn-signin"
+              onClick={() => onNavigate('login')}
+            >
+              <LockKeyhole size={14} />
+              <span>Staff &amp; Admin Sign In</span>
+            </button>
 
             <button
               type="button"
