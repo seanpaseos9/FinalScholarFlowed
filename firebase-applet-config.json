@@ -1,12 +1,12 @@
 {
-  "projectId": "xenodochial-genre-5lkcn",
-  "appId": "1:745735371340:web:ceaf4c3e618181af5c92e9",
-  "apiKey": "AIzaSyAjlTuhKfNK-wS_r76hNxrFjUFwogUBsV4",
-  "authDomain": "xenodochial-genre-5lkcn.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-remixremixremixs-a22dfd17-feea-4e34-aadf-25091a442b3c",
-  "storageBucket": "xenodochial-genre-5lkcn.firebasestorage.app",
-  "messagingSenderId": "745735371340",
-  "measurementId": "",
-  "oAuthClientId": "745735371340-p8flf8mi81fhg2j3fdep8p76aucmft3c.apps.googleusercontent.com",
+  "projectId": "finalscholarflowedd",
+  "appId": "1:391838307357:web:993ddc3103896fe58662f4",
+  "apiKey": "AIzaSyCsb5TkGeYzfoiT8X2kHA1PLyhXz7kwFS0",
+  "authDomain": "finalscholarflowedd.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "finalscholarflowedd.firebasestorage.app",
+  "messagingSenderId": "391838307357",
+  "measurementId": "G-R4EM04DQJQ",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

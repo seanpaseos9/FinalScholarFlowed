@@ -40,7 +40,12 @@ setLogLevel('silent');
 const app = initializeApp(firebaseConfig);
 
 // CRITICAL: Connect to configured Firestore database instance
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Use the default Firestore database when the configured ID is "(default)" or empty
+const firestoreDbId = (firebaseConfig as any).firestoreDatabaseId;
+export const db =
+  firestoreDbId && firestoreDbId !== '(default)'
+    ? getFirestore(app, firestoreDbId)
+    : getFirestore(app);
 export const auth = getAuth(app);
 
 // Standardized Operation Types & Error Handler conforming to SKILL.md
