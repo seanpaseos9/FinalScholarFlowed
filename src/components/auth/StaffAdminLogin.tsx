@@ -22,7 +22,6 @@ import portalBgImg from '../../assets/images/scholarship_portal_bg_1788197531135
 import { StaffRegistrationModal } from './StaffRegistrationModal';
 import { StaffAccountTrackerModal } from './StaffAccountTrackerModal';
 import { StaffForgotPasswordModal } from './StaffForgotPasswordModal';
-import { StaffFirstTimeSecurityModal } from './StaffFirstTimeSecurityModal';
 
 interface StaffAdminLoginProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -52,10 +51,8 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
 
-  // Modals for Account Recovery & First-Time Security Questions Setup
+  // Modal for Account Recovery
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
-  const [isFirstTimeSetupOpen, setIsFirstTimeSetupOpen] = useState(false);
-  const [pendingFirstTimeUser, setPendingFirstTimeUser] = useState<UserProfile | null>(null);
 
   // When switching role, reset form inputs for written authentication
   const handleSelectRole = (role: 'staff' | 'admin') => {
@@ -94,22 +91,6 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
         setErrorMessage(
           `Credentials belong to an ${result.user.role === 'admin' ? 'Administrator' : 'Staff Coordinator'} account. Please sign in under the ${result.user.role === 'admin' ? 'System Admin' : 'Staff Coordinator'} portal.`
         );
-        return;
-      }
-
-      // Check if staff member needs to set up their security questions (prompt on first-time login)
-      const userEmail = (result.user.email || '').toLowerCase().trim();
-      const isSecuritySetup = Boolean(
-        result.user.security_questions_setup ||
-        (typeof localStorage !== 'undefined' && (
-          localStorage.getItem('staff_security_setup_' + result.user.id) === 'true' ||
-          localStorage.getItem('staff_security_setup_' + userEmail) === 'true'
-        ))
-      );
-
-      if (result.user.role === 'staff' && !isSecuritySetup) {
-        setPendingFirstTimeUser(result.user);
-        setIsFirstTimeSetupOpen(true);
         return;
       }
 
@@ -516,19 +497,6 @@ export const StaffAdminLogin: React.FC<StaffAdminLoginProps> = ({
           setEmail(recoveredEmail);
         }}
       />
-
-      {/* Mandatory First-Time Login Security Questions Setup */}
-      {pendingFirstTimeUser && (
-        <StaffFirstTimeSecurityModal
-          isOpen={isFirstTimeSetupOpen}
-          user={pendingFirstTimeUser}
-          onComplete={(updatedUser) => {
-            setIsFirstTimeSetupOpen(false);
-            setPendingFirstTimeUser(null);
-            onLoginSuccess(updatedUser);
-          }}
-        />
-      )}
 
     </div>
   );
