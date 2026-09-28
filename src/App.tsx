@@ -34,10 +34,8 @@ import {
   deleteApplicationFromFirestore,
   saveFreezePeriodToFirestore,
   resetFirestoreScholarships,
-  saveUserToFirestore,
   deleteUserFromFirestore,
   subscribeStaffApplications,
-  createStaffApplicationInFirestore,
   updateStaffApplicationInFirestore,
 } from './lib/firebase';
 import {
@@ -102,8 +100,14 @@ export default function App() {
     if (requestedRoute === 'login') return 'login';
     if (requestedRoute === 'student') return 'student';
 
-    // Strict Landing Page Default Route: Base URL/root of the website strictly defaults to the public Landing Page ('portal').
-    // Users should not bypass the landing page or be forced straight into a login screen upon first visit.
+    const savedView = sessionStorage.getItem('scholarflow_current_view');
+    if (savedView === 'admin' && user?.role === 'admin') return 'admin';
+    if (savedView === 'staff' && (user?.role === 'staff' || user?.role === 'admin')) return 'staff';
+    if (savedView === 'student') return 'student';
+    if (savedView === 'login') return 'login';
+    if (user?.role === 'admin') return 'admin';
+    if (user?.role === 'staff') return 'staff';
+
     return 'portal';
   });
 
@@ -319,7 +323,7 @@ export default function App() {
           ) {
             saveStoredSessionToken(null);
             saveStoredActiveUser(null);
-            localStorage.removeItem('scholarflow_current_view');
+            sessionStorage.removeItem('scholarflow_current_view');
             const noticeMsg = 'Your session has ended because this account was accessed from another device.';
             setDisplacedSessionNotice(noticeMsg);
             setDisplacedNotice(noticeMsg);
@@ -371,7 +375,7 @@ export default function App() {
     saveStoredSessionToken(null);
     setActiveUser(null);
     saveStoredActiveUser(null);
-    localStorage.removeItem('scholarflow_current_view');
+    sessionStorage.removeItem('scholarflow_current_view');
     setCurrentView('portal');
     if (currentUser) {
       logEvent('Security', 'Authentication', `User signed out: ${currentUser.full_name} (${currentUser.email})`);
@@ -745,10 +749,8 @@ export default function App() {
         updated_at: new Date().toISOString(),
       };
 
-      setStaffApplications((prev) => [newApp, ...prev.filter((a) => a.id !== newApp.id)]);
-
-      await createStaffApplicationInFirestore(newApp);
       await syncCreateStaffApplication(newApp);
+      setStaffApplications((prev) => [newApp, ...prev.filter((a) => a.id !== newApp.id)]);
 
       logEvent(
         'Info',
@@ -758,7 +760,7 @@ export default function App() {
       return true;
     } catch (err) {
       console.error('Failed to submit staff application:', err);
-      return false;
+      throw err;
     }
   };
 
@@ -789,6 +791,7 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
 
+    await syncSaveUser(newStaffUser);
     setUsers((prev) => {
       const exists = prev.findIndex((u) => u.email.toLowerCase() === assignedUsername.toLowerCase());
       if (exists >= 0) {
@@ -798,8 +801,6 @@ export default function App() {
       }
       return [...prev, newStaffUser];
     });
-    await saveUserToFirestore(newStaffUser);
-    await syncSaveUser(newStaffUser);
 
     // 2. Update staff application status to Approved with assigned credentials
     const updatedApp: StaffApplication = {

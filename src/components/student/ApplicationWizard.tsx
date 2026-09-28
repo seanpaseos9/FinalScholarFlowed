@@ -10,6 +10,44 @@ import { DocumentUploader } from '../common/DocumentUploader';
 import { DocumentViewerModal } from '../common/DocumentViewerModal';
 import { checkDuplicateApplication } from '../../lib/duplicateCheck';
 
+const formatBirthdateForInput = (value: unknown): string => {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    const datePart = value.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+  }
+
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof value.toDate === 'function'
+  ) {
+    date = value.toDate();
+  } else {
+    date = new Date(value as string | number);
+  }
+
+  if (Number.isNaN(date.getTime())) return '';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
+const getApplicationBirthdate = (application: Application): string => {
+  const legacyApplication = application as Application & {
+    birth_date?: unknown;
+    date_of_birth?: unknown;
+    dob?: unknown;
+  };
+  return formatBirthdateForInput(
+    application.birthdate || legacyApplication.birth_date || legacyApplication.date_of_birth || legacyApplication.dob
+  );
+};
+
 interface ApplicationWizardProps {
   scholarship: Scholarship;
   onClose: () => void;
@@ -138,7 +176,7 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
         setMiddleName(prevApp.middle_name || '');
         setLastName(prevApp.last_name || '');
         setGender(prevApp.gender || '');
-        setBirthdate(prevApp.birthdate || '');
+        setBirthdate(getApplicationBirthdate(prevApp));
         setEmail(prevApp.email || '');
         setPhone(prevApp.phone || '');
         setProgram(prevApp.program || 'BS Computer Science');
@@ -324,23 +362,7 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
     })[0];
 
     // Safely extract and format birthdate to YYYY-MM-DD so HTML5 input[type="date"] accepts it
-    let rawBirthdate = chosen.birthdate || (chosen as any).birth_date || (chosen as any).dob || '';
-    let formattedBirthdate = '';
-    if (rawBirthdate) {
-      if (typeof rawBirthdate === 'string') {
-        const isoDatePart = rawBirthdate.split('T')[0];
-        if (/^\d{4}-\d{2}-\d{2}$/.test(isoDatePart)) {
-          formattedBirthdate = isoDatePart;
-        } else {
-          const parsed = new Date(rawBirthdate);
-          if (!isNaN(parsed.getTime())) {
-            formattedBirthdate = parsed.toISOString().split('T')[0];
-          } else {
-            formattedBirthdate = rawBirthdate;
-          }
-        }
-      }
-    }
+    const formattedBirthdate = getApplicationBirthdate(chosen);
 
     // Populate personal information
     setStudentNumber(chosen.student_number || '');
@@ -416,10 +438,8 @@ export const ApplicationWizard: React.FC<ApplicationWizardProps> = ({
       if (prev.middle_name) setMiddleName(prev.middle_name);
       if (prev.last_name) setLastName(prev.last_name);
       if (prev.gender) setGender(prev.gender);
-      if (prev.birthdate) {
-        const b = String(prev.birthdate).split('T')[0];
-        setBirthdate(b);
-      }
+      const previousBirthdate = getApplicationBirthdate(prev);
+      if (previousBirthdate) setBirthdate(previousBirthdate);
       if (prev.phone) setPhone(prev.phone);
       if (prev.program) setProgram(prev.program);
       if (prev.year_level) setYearLevel(prev.year_level);

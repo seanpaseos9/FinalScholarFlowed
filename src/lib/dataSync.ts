@@ -212,19 +212,19 @@ export async function syncUpdateStaffApplication(app: StaffApplication): Promise
 }
 
 export async function syncSaveUser(user: UserProfile): Promise<UserProfile> {
-  const backendPromise = fetch(`/api/users/${user.id}`, {
+  const response = await fetch(`/api/users/${user.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(user),
-  }).catch((err) => {
-    console.warn('Backend user update notice:', err);
   });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `Server responded with ${response.status}`);
+  }
 
-  const firestorePromise = saveUserToFirestore(user).catch((err) => {
+  await saveUserToFirestore(user).catch((err) => {
     console.warn('Firestore user update notice:', err);
   });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return user;
 }
 

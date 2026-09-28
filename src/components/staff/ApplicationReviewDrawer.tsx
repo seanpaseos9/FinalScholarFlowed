@@ -262,7 +262,7 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
         <div className="p-6 space-y-6 text-xs flex-1">
 
           {/* Quick Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div>
               <span className="text-[10px] text-slate-400 font-bold uppercase block">Degree & Year</span>
               <span className="font-bold text-slate-900">{application.program}</span>
@@ -284,6 +284,12 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
             <div>
               <span className="text-[10px] text-slate-400 font-bold uppercase block">Email</span>
               <span className="font-medium text-slate-800 truncate block">{application.email}</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase block">Birthdate</span>
+              <span className="font-bold text-slate-900">
+                {application.birthdate ? formatDate(application.birthdate.split('T')[0]) : '—'}
+              </span>
             </div>
           </div>
 
