@@ -37,6 +37,7 @@ import {
   deleteUserFromFirestore,
   subscribeStaffApplications,
   updateStaffApplicationInFirestore,
+  saveUserToFirestore,
 } from './lib/firebase';
 import {
   fetchAllBackendData,
@@ -296,7 +297,19 @@ export default function App() {
     });
 
     const unsubApplications = subscribeApplications((list) => {
-      setApplications(list);
+      if (list && list.length > 0) {
+        setApplications((prev) => {
+          const firestoreIds = new Set(list.map((a) => a.id));
+          const localOnly = prev.filter((a) => !firestoreIds.has(a.id));
+          const merged = [...list, ...localOnly];
+          merged.sort(
+            (a, b) =>
+              new Date(b.created_at || '').getTime() -
+              new Date(a.created_at || '').getTime()
+          );
+          return merged;
+        });
+      }
     });
 
     const unsubFreezePeriods = subscribeFreezePeriods((list) => {

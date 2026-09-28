@@ -177,20 +177,30 @@ export async function syncDeleteInterview(id: string): Promise<void> {
 // -------------------------------------------------------------
 
 export async function syncCreateStaffApplication(app: StaffApplication): Promise<StaffApplication> {
-  const res = await fetch('/api/staff-applications', {
+  const backendPromise = fetch('/api/staff-applications', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(app),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        throw new Error(errData.error || 'A staff application with this email or Staff ID already exists.');
+      }
+      console.warn('Backend staff app save notice:', errData.error || res.statusText);
+    }
+  }).catch((err) => {
+    if (err?.message?.includes('already')) {
+      throw err;
+    }
+    console.warn('Backend staff app save notice:', err);
   });
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || `Server responded with ${res.status}`);
-  }
 
-  await createStaffApplicationInFirestore(app).catch((err) => {
+  const firestorePromise = createStaffApplicationInFirestore(app).catch((err) => {
     console.warn('Firestore staff app save notice:', err);
   });
 
+  await Promise.allSettled([backendPromise, firestorePromise]);
   return app;
 }
 
@@ -212,19 +222,30 @@ export async function syncUpdateStaffApplication(app: StaffApplication): Promise
 }
 
 export async function syncSaveUser(user: UserProfile): Promise<UserProfile> {
-  const response = await fetch(`/api/users/${user.id}`, {
+  const backendPromise = fetch(`/api/users/${user.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(user),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        throw new Error(errData.error || 'A faculty account with this email already exists.');
+      }
+      console.warn('Backend user save notice:', errData.error || res.statusText);
+    }
+  }).catch((err) => {
+    if (err?.message?.includes('already exists')) {
+      throw err;
+    }
+    console.warn('Backend user save notice:', err);
   });
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error || `Server responded with ${response.status}`);
-  }
 
-  await saveUserToFirestore(user).catch((err) => {
+  const firestorePromise = saveUserToFirestore(user).catch((err) => {
     console.warn('Firestore user update notice:', err);
   });
+
+  await Promise.allSettled([backendPromise, firestorePromise]);
   return user;
 }
 

@@ -10,6 +10,7 @@ import {
   onSnapshot,
   setLogLevel,
   deleteField,
+  writeBatch,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
