@@ -6,24 +6,20 @@ import {
   UserProfile,
   StaffApplication,
 } from '../types';
-import {
-  createApplicationInFirestore,
-  updateApplicationInFirestore,
-  deleteApplicationFromFirestore,
-  saveScholarshipToFirestore,
-  deleteScholarshipFromFirestore,
-  saveFreezePeriodToFirestore,
-  saveInterviewToFirestore,
-  saveUserToFirestore,
-  createStaffApplicationInFirestore,
-  updateStaffApplicationInFirestore,
-} from './firebase';
+async function requestApi(path: string, options: RequestInit): Promise<Response> {
+  const response = await fetch(path, options);
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `Server responded with ${response.status}`);
+  }
+  return response;
+}
 
 /**
  * Data Synchronization Service
  * Ensures every create, edit, and delete action is completely recorded
- * to both the Backend API server and Cloud Firestore database,
- * and immediately reflected on the frontend.
+ * through the Backend API server (which persists to Cloud Firestore),
+ * and immediately reflected on the frontend by Firestore subscriptions.
  */
 
 // -------------------------------------------------------------
@@ -31,62 +27,28 @@ import {
 // -------------------------------------------------------------
 
 export async function syncCreateApplication(application: Application): Promise<Application> {
-  const backendPromise = fetch('/api/applications', {
+  await requestApi('/api/applications', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(application),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      if (res.status === 409) {
-        throw new Error(errData.error || 'You already applied for this scholarship');
-      }
-      console.warn('Backend API submission warning:', errData.error || res.statusText);
-    }
-  }).catch((apiErr: any) => {
-    if (apiErr?.message?.includes('already applied')) {
-      throw apiErr;
-    }
-    console.warn('Direct backend API notice:', apiErr);
   });
-
-  const firestorePromise = createApplicationInFirestore(application).catch((firestoreErr) => {
-    console.warn('Client Firestore write notice (backend handles persistence):', firestoreErr);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return application;
 }
 
 export async function syncUpdateApplication(application: Application): Promise<Application> {
-  const backendPromise = fetch(`/api/applications/${application.id}`, {
+  await requestApi(`/api/applications/${application.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(application),
-  }).catch((apiErr) => {
-    console.warn('Backend update notice:', apiErr);
   });
 
-  const firestorePromise = updateApplicationInFirestore(application).catch((firestoreErr) => {
-    console.warn('Client Firestore update notice:', firestoreErr);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return application;
 }
 
 export async function syncDeleteApplication(id: string): Promise<void> {
-  const backendPromise = fetch(`/api/applications/${id}`, {
+  await requestApi(`/api/applications/${id}`, {
     method: 'DELETE',
-  }).catch((apiErr) => {
-    console.warn('Backend delete notice:', apiErr);
   });
-
-  const firestorePromise = deleteApplicationFromFirestore(id).catch((firestoreErr) => {
-    console.warn('Client Firestore delete notice:', firestoreErr);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
 }
 
 // -------------------------------------------------------------
@@ -94,34 +56,19 @@ export async function syncDeleteApplication(id: string): Promise<void> {
 // -------------------------------------------------------------
 
 export async function syncSaveScholarship(scholarship: Scholarship): Promise<Scholarship> {
-  const backendPromise = fetch(`/api/scholarships/${scholarship.id}`, {
+  await requestApi(`/api/scholarships/${scholarship.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(scholarship),
-  }).catch((apiErr) => {
-    console.warn('Backend scholarship save notice:', apiErr);
   });
 
-  const firestorePromise = saveScholarshipToFirestore(scholarship).catch((firestoreErr) => {
-    console.warn('Client Firestore scholarship notice:', firestoreErr);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return scholarship;
 }
 
 export async function syncDeleteScholarship(id: string): Promise<void> {
-  const backendPromise = fetch(`/api/scholarships/${id}`, {
+  await requestApi(`/api/scholarships/${id}`, {
     method: 'DELETE',
-  }).catch((apiErr) => {
-    console.warn('Backend scholarship delete notice:', apiErr);
   });
-
-  const firestorePromise = deleteScholarshipFromFirestore(id).catch((firestoreErr) => {
-    console.warn('Client Firestore scholarship delete notice:', firestoreErr);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
 }
 
 // -------------------------------------------------------------
@@ -129,47 +76,29 @@ export async function syncDeleteScholarship(id: string): Promise<void> {
 // -------------------------------------------------------------
 
 export async function syncSaveFreezePeriod(period: FreezePeriod): Promise<FreezePeriod> {
-  const backendPromise = fetch('/api/freeze-periods', {
+  await requestApi('/api/freeze-periods', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(period),
-  }).catch((err) => {
-    console.warn('Backend freeze save notice:', err);
   });
 
-  const firestorePromise = saveFreezePeriodToFirestore(period).catch((err) => {
-    console.warn('Firestore freeze save notice:', err);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return period;
 }
 
 export async function syncSaveInterview(interview: InterviewSchedule): Promise<InterviewSchedule> {
-  const backendPromise = fetch('/api/interviews', {
+  await requestApi('/api/interviews', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(interview),
-  }).catch((err) => {
-    console.warn('Backend interview save notice:', err);
   });
 
-  const firestorePromise = saveInterviewToFirestore(interview).catch((err) => {
-    console.warn('Firestore interview save notice:', err);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return interview;
 }
 
 export async function syncDeleteInterview(id: string): Promise<void> {
-  const backendPromise = fetch(`/api/interviews/${id}`, {
+  await requestApi(`/api/interviews/${id}`, {
     method: 'DELETE',
-  }).catch((err) => {
-    console.warn('Backend interview delete notice:', err);
   });
-
-  await backendPromise;
 }
 
 // -------------------------------------------------------------
@@ -177,75 +106,30 @@ export async function syncDeleteInterview(id: string): Promise<void> {
 // -------------------------------------------------------------
 
 export async function syncCreateStaffApplication(app: StaffApplication): Promise<StaffApplication> {
-  const backendPromise = fetch('/api/staff-applications', {
+  await requestApi('/api/staff-applications', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(app),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      if (res.status === 409) {
-        throw new Error(errData.error || 'A staff application with this email or Staff ID already exists.');
-      }
-      console.warn('Backend staff app save notice:', errData.error || res.statusText);
-    }
-  }).catch((err) => {
-    if (err?.message?.includes('already')) {
-      throw err;
-    }
-    console.warn('Backend staff app save notice:', err);
   });
-
-  const firestorePromise = createStaffApplicationInFirestore(app).catch((err) => {
-    console.warn('Firestore staff app save notice:', err);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return app;
 }
 
 export async function syncUpdateStaffApplication(app: StaffApplication): Promise<StaffApplication> {
-  const backendPromise = fetch(`/api/staff-applications/${app.id}`, {
+  await requestApi(`/api/staff-applications/${app.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(app),
-  }).catch((err) => {
-    console.warn('Backend staff app update notice:', err);
   });
 
-  const firestorePromise = updateStaffApplicationInFirestore(app).catch((err) => {
-    console.warn('Firestore staff app update notice:', err);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return app;
 }
 
 export async function syncSaveUser(user: UserProfile): Promise<UserProfile> {
-  const backendPromise = fetch(`/api/users/${user.id}`, {
+  await requestApi(`/api/users/${user.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(user),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      if (res.status === 409) {
-        throw new Error(errData.error || 'A faculty account with this email already exists.');
-      }
-      console.warn('Backend user save notice:', errData.error || res.statusText);
-    }
-  }).catch((err) => {
-    if (err?.message?.includes('already exists')) {
-      throw err;
-    }
-    console.warn('Backend user save notice:', err);
   });
-
-  const firestorePromise = saveUserToFirestore(user).catch((err) => {
-    console.warn('Firestore user update notice:', err);
-  });
-
-  await Promise.allSettled([backendPromise, firestorePromise]);
   return user;
 }
 

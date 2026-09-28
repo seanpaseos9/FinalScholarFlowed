@@ -12,9 +12,9 @@ interface ApplicationReviewDrawerProps {
   scholarships?: Scholarship[];
   currentUser?: UserProfile;
   onClose: () => void;
-  onUpdateApplication: (updatedApp: Application) => void;
+  onUpdateApplication: (updatedApp: Application) => Promise<void> | void;
   onDeleteApplication?: (id: string) => void;
-  onSaveInterview?: (interview: InterviewSchedule) => void;
+  onSaveInterview?: (interview: InterviewSchedule) => Promise<void> | void;
 }
 
 /** Compute the scholarship expiry date: approvedAt + durationYears */
@@ -62,6 +62,8 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
   const [removalReason, setRemovalReason] = useState<string>(application.removal_reason || '');
   const [inspectDoc, setInspectDoc] = useState<ApplicationDocument | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Find matching scholarship to get policy & duration info
   const scholarship = scholarships.find(s => s.id === application.scholarship_id);
@@ -155,7 +157,10 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
     setRemovalReason(application.removal_reason || '');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
     const now = new Date().toISOString();
     let approved_at = application.approved_at;
     let approved_by = application.approved_by;
@@ -185,7 +190,7 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
         return;
       }
       if (onSaveInterview) {
-        onSaveInterview({
+        await onSaveInterview({
           id: `inv-${Date.now()}`,
           application_id: application.id,
           student_name: `${application.first_name} ${application.last_name}`,
@@ -212,8 +217,13 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
       updated_at: now,
     };
 
-    onUpdateApplication(updated);
+    await onUpdateApplication(updated);
     onClose();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Failed to save application review. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = () => {
@@ -674,6 +684,12 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
 
         </div>
 
+        {saveError && (
+          <p role="alert" className="px-4 py-2 bg-rose-50 text-rose-700 border-t border-rose-200 text-xs">
+            {saveError}
+          </p>
+        )}
+
         {/* Drawer Action Footer */}
         <div className="bg-slate-100 p-4 border-t border-slate-200 flex justify-between items-center sticky bottom-0">
           <div>
@@ -704,7 +720,7 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
             </button>
             <button
               onClick={handleSave}
-              disabled={status === 'Removed' && !removalReason.trim()}
+              disabled={saving || (status === 'Removed' && !removalReason.trim())}
               className={`px-6 py-2 text-white font-bold text-xs rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors ${
                 status === 'Removed' && !removalReason.trim()
                   ? 'bg-slate-300 cursor-not-allowed'
@@ -712,7 +728,7 @@ export const ApplicationReviewDrawer: React.FC<ApplicationReviewDrawerProps> = (
               }`}
             >
               <CheckCircle2 className="w-4 h-4 text-white" />
-              <span>Save Decision</span>
+              <span>{saving ? 'Saving...' : 'Save Decision'}</span>
             </button>
           </div>
         </div>

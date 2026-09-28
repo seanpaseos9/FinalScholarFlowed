@@ -26,18 +26,13 @@ import {
   subscribeInterviews,
   subscribeUsers,
   saveScholarshipToFirestore,
-  updateScholarshipFreezeInFirestore,
   updateUserSessionTokenInFirestore,
   deleteScholarshipFromFirestore,
-  createApplicationInFirestore,
-  updateApplicationInFirestore,
   deleteApplicationFromFirestore,
   saveFreezePeriodToFirestore,
   resetFirestoreScholarships,
   deleteUserFromFirestore,
   subscribeStaffApplications,
-  updateStaffApplicationInFirestore,
-  saveUserToFirestore,
 } from './lib/firebase';
 import {
   fetchAllBackendData,
@@ -418,41 +413,35 @@ export default function App() {
       throw new Error('You already applied for this scholarship');
     }
 
-    // 2. Immediately reflect on frontend state (Optimistic update)
     const nextApplications = [newApp, ...applications.filter((a) => a.id !== newApp.id)];
-    setApplications(nextApplications);
-
-    // 3. Update slot count for target scholarship accurately based on actual recorded applications
-    const targetSch = scholarships.find(s => s.id === newApp.scholarship_id || s.title === newApp.scholarship_title);
-    if (targetSch) {
-      const updatedRemaining = calculateRemainingSlots(targetSch, nextApplications);
-      const updatedSch = {
-        ...targetSch,
-        slots_remaining: updatedRemaining,
-      };
-      setScholarships((prev) => prev.map(s => s.id === targetSch.id ? updatedSch : s));
-      try {
-        await syncSaveScholarship(updatedSch);
-      } catch (err) {
-        console.error('Failed to sync slot count update:', err);
-      }
-    }
 
     try {
       await syncCreateApplication(newApp);
+      setApplications(nextApplications);
+
+      const targetSch = scholarships.find(s => s.id === newApp.scholarship_id || s.title === newApp.scholarship_title);
+      if (targetSch) {
+        const updatedSch = {
+          ...targetSch,
+          slots_remaining: calculateRemainingSlots(targetSch, nextApplications),
+        };
+        setScholarships((prev) => prev.map(s => s.id === targetSch.id ? updatedSch : s));
+        syncSaveScholarship(updatedSch).catch((err) => {
+          console.error('Failed to sync slot count update:', err);
+        });
+      }
+
       logEvent('Info', 'Application', `New application submitted: ${newApp.reference_code} — ${newApp.first_name} ${newApp.last_name} for "${newApp.scholarship_title}"`);
     } catch (err: any) {
       console.error('Failed to sync application to backend/database:', err);
-      if (err?.message?.includes('already applied')) {
-        setApplications((prev) => prev.filter((a) => a.id !== newApp.id));
-        throw err;
-      }
+      throw err;
     }
   };
 
   // Staff Actions: Edit & Delete Application (Completely recorded on Frontend, Backend API, and Cloud Firestore)
   const handleUpdateApplicationFromStaff = async (updatedApp: Application) => {
     const nextApps = applications.map((a) => (a.id === updatedApp.id ? updatedApp : a));
+    await syncUpdateApplication(updatedApp);
     setApplications(nextApps);
 
     // If application status changed (e.g. to or from Rejected), update the scholarship's slot count
@@ -470,12 +459,7 @@ export default function App() {
       }
     }
 
-    try {
-      await syncUpdateApplication(updatedApp);
-      logEvent('Info', 'Application', `Application ${updatedApp.reference_code} status updated to "${updatedApp.status}" — ${updatedApp.first_name} ${updatedApp.last_name}`);
-    } catch (err) {
-      console.error('Failed to update application in backend/Firestore:', err);
-    }
+    logEvent('Info', 'Application', `Application ${updatedApp.reference_code} status updated to "${updatedApp.status}" — ${updatedApp.first_name} ${updatedApp.last_name}`);
   };
 
   const handleDeleteApplication = async (id: string) => {
@@ -518,46 +502,31 @@ export default function App() {
   };
 
   const handleSaveFreezeAction = async (freezeRecord: FreezePeriod) => {
+    await syncSaveFreezePeriod(freezeRecord);
     setFreezePeriods((prev) => [freezeRecord, ...prev.filter((f) => f.id !== freezeRecord.id)]);
 
-    try {
-      await syncSaveFreezePeriod(freezeRecord);
-
-      // Update targeted scholarships based on is_active (freeze vs unfreeze)
-      const targeted = scholarships.filter(
-        (s) => freezeRecord.scholarship_id === 'all' || s.id === freezeRecord.scholarship_id
-      );
-      const actionLabel = freezeRecord.is_active ? 'FROZEN' : 'UNFROZEN';
-      for (const s of targeted) {
-        const updated: Scholarship = {
-          ...s,
-          is_frozen: freezeRecord.is_active,
-          freeze_note: freezeRecord.is_active ? freezeRecord.announcement_note : undefined,
-        };
-        setScholarships((prev) => prev.map((item) => (item.id === s.id ? updated : item)));
-
-        // Explicitly clear freeze_note in Firestore using deleteField() on unfreeze
-        await updateScholarshipFreezeInFirestore(
-          s.id,
-          freezeRecord.is_active,
-          freezeRecord.is_active ? freezeRecord.announcement_note : undefined
-        ).catch((err) => {
-          console.warn('Firestore direct freeze update notice:', err);
-        });
-
-        await syncSaveScholarship(updated);
-      }
-      logEvent(
-        freezeRecord.is_active ? 'Warning' : 'Info',
-        'Freeze',
-        `Scholarship ${actionLabel}: ${freezeRecord.scholarship_title || 'All Programs'} — "${freezeRecord.announcement_note}"`
-      );
-    } catch (err) {
-      console.error('Failed to save freeze period to backend/Firestore:', err);
+    const targeted = scholarships.filter(
+      (s) => freezeRecord.scholarship_id === 'all' || s.id === freezeRecord.scholarship_id
+    );
+    const actionLabel = freezeRecord.is_active ? 'FROZEN' : 'UNFROZEN';
+    for (const scholarship of targeted) {
+      const updated: Scholarship = {
+        ...scholarship,
+        is_frozen: freezeRecord.is_active,
+        freeze_note: freezeRecord.is_active ? freezeRecord.announcement_note : undefined,
+      };
+      await syncSaveScholarship(updated);
+      setScholarships((prev) => prev.map((item) => (item.id === scholarship.id ? updated : item)));
     }
+    logEvent(
+      freezeRecord.is_active ? 'Warning' : 'Info',
+      'Freeze',
+      `Scholarship ${actionLabel}: ${freezeRecord.scholarship_title || 'All Programs'} — "${freezeRecord.announcement_note}"`
+    );
   };
 
   const handleSaveInterview = async (interview: InterviewSchedule) => {
+    await syncSaveInterview(interview);
     setInterviews((prev) => {
       const idx = prev.findIndex((i) => i.id === interview.id || i.application_id === interview.application_id);
       if (idx >= 0) {
@@ -568,12 +537,7 @@ export default function App() {
       return [interview, ...prev];
     });
 
-    try {
-      await syncSaveInterview(interview);
-      logEvent('Info', 'Interview', `Scheduled interview for ${interview.student_name} (${interview.date_time})`);
-    } catch (err) {
-      console.error('Failed to save interview to backend:', err);
-    }
+    logEvent('Info', 'Interview', `Scheduled interview for ${interview.student_name} (${interview.date_time})`);
   };
 
   const handleDeleteInterview = async (id: string) => {
@@ -605,17 +569,12 @@ export default function App() {
       slots_remaining: accurateRemaining,
     };
     const isNew = !scholarships.some((s) => s.id === normalizedSch.id);
+    await syncSaveScholarship(normalizedSch);
     setScholarships((prev) => {
       const exists = prev.some((s) => s.id === normalizedSch.id);
       return exists ? prev.map((s) => (s.id === normalizedSch.id ? normalizedSch : s)) : [normalizedSch, ...prev];
     });
-
-    try {
-      await syncSaveScholarship(normalizedSch);
-      logEvent('System', 'Scholarship', `Scholarship ${isNew ? 'created' : 'updated'}: "${normalizedSch.title}" (${normalizedSch.code}) — Slots: ${normalizedSch.slots}, Remaining: ${normalizedSch.slots_remaining}, Grant: ₱${normalizedSch.grant_amount.toLocaleString()}`);
-    } catch (err) {
-      console.error('Failed to save scholarship to backend/Firestore:', err);
-    }
+    logEvent('System', 'Scholarship', `Scholarship ${isNew ? 'created' : 'updated'}: "${normalizedSch.title}" (${normalizedSch.code}) — Slots: ${normalizedSch.slots}, Remaining: ${normalizedSch.slots_remaining}, Grant: ₱${normalizedSch.grant_amount.toLocaleString()}`);
   };
 
   const handleDeleteScholarshipFromAdmin = async (id: string) => {
@@ -640,37 +599,21 @@ export default function App() {
 
   // Faculty & User Accounts Update (Cloud Firestore & Backend API)
   const handleUpdateUser = async (updatedUser: UserProfile) => {
-    try {
-      setUsers((prev) => {
-        const index = prev.findIndex((u) => u.id === updatedUser.id);
-        if (index >= 0) {
-          const next = [...prev];
-          next[index] = updatedUser;
-          return next;
-        }
-        return [...prev, updatedUser];
-      });
+    await syncSaveUser(updatedUser);
 
-      if (activeUser && activeUser.id === updatedUser.id) {
-        setActiveUser(updatedUser);
-        saveStoredActiveUser(updatedUser);
+    setUsers((prev) => {
+      const index = prev.findIndex((u) => u.id === updatedUser.id);
+      if (index >= 0) {
+        const next = [...prev];
+        next[index] = updatedUser;
+        return next;
       }
+      return [...prev, updatedUser];
+    });
 
-      const firestorePromise = saveUserToFirestore(updatedUser).catch((err) => {
-        console.error('Failed to update user profile in Firestore:', err);
-      });
-
-      const backendPromise = fetch(`/api/users/${updatedUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUser),
-      }).catch((backendErr) => {
-        console.warn('Backend API notification notice:', backendErr);
-      });
-
-      await Promise.allSettled([firestorePromise, backendPromise]);
-    } catch (err) {
-      console.error('Failed to update user profile:', err);
+    if (activeUser && activeUser.id === updatedUser.id) {
+      setActiveUser(updatedUser);
+      saveStoredActiveUser(updatedUser);
     }
   };
 
@@ -827,9 +770,8 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
 
-    setStaffApplications((prev) => prev.map((a) => (a.id === applicationId ? updatedApp : a)));
-    await updateStaffApplicationInFirestore(updatedApp);
     await syncUpdateStaffApplication(updatedApp);
+    setStaffApplications((prev) => prev.map((a) => (a.id === applicationId ? updatedApp : a)));
 
     logEvent(
       'Info',
@@ -852,9 +794,8 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
 
-    setStaffApplications((prev) => prev.map((a) => (a.id === applicationId ? updatedApp : a)));
-    await updateStaffApplicationInFirestore(updatedApp);
     await syncUpdateStaffApplication(updatedApp);
+    setStaffApplications((prev) => prev.map((a) => (a.id === applicationId ? updatedApp : a)));
 
     logEvent(
       'Warning',

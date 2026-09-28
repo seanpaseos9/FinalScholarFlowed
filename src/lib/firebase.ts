@@ -8,11 +8,12 @@ import {
   setDoc,
   deleteDoc,
   onSnapshot,
+  writeBatch,
   setLogLevel,
   deleteField,
-  writeBatch,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 import {
   Scholarship,
@@ -47,6 +48,7 @@ export const db =
     ? getFirestore(app, firestoreDbId)
     : getFirestore(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 // Standardized Operation Types & Error Handler conforming to SKILL.md
 export enum OperationType {
@@ -122,6 +124,7 @@ export function handleFirestoreError(
   }
 
   console.warn('Firestore Operation Notice: ', JSON.stringify(errInfo));
+  throw error instanceof Error ? error : new Error(errMsg);
 }
 
 // Connection check on boot

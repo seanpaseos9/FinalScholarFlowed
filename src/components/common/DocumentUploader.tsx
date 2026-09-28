@@ -10,6 +10,39 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { ApplicationDocument } from '../../types';
+import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+import { storage } from '../../lib/firebase';
+
+async function optimizeImageForUpload(file: File, contentType: string): Promise<File> {
+  if (!contentType.startsWith('image/') || file.size < 1.5 * 1024 * 1024) return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const context = canvas.getContext('2d');
+    if (!context) {
+      bitmap.close();
+      return file;
+    }
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const compressed = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/webp', 0.86);
+    });
+    if (!compressed || compressed.size >= file.size) return file;
+
+    return new File([compressed], file.name.replace(/\.[^.]+$/, '.webp'), {
+      type: 'image/webp',
+      lastModified: file.lastModified,
+    });
+  } catch {
+    return file;
+  }
+}
 
 interface DocumentUploaderProps {
   type: 'com' | 'itr' | 'id' | 'other';
@@ -36,6 +69,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,7 +80,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
+    if (isProcessing) return;
     setErrorMessage(null);
 
     // Validate size
@@ -57,44 +93,110 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     // Validate type
     const validExtensions = acceptedFormats.split(',').map((ext) => ext.trim().toLowerCase());
     const fileExtension = `.${file.name.split('.').pop()?.toLowerCase()}`;
-    const isValidExtension = validExtensions.some((ext) => ext === fileExtension || ext === `.${file.type.split('/')[1]}`);
+    const inferredContentTypes: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+    };
+    const contentType = file.type || inferredContentTypes[fileExtension] || '';
+    const isValidExtension = validExtensions.some((ext) => ext === fileExtension);
+    const isSupportedContentType = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(contentType);
 
-    if (!isValidExtension && !file.type.startsWith('image/') && file.type !== 'application/pdf') {
+    if (!isValidExtension || !isSupportedContentType) {
       setErrorMessage(`Invalid file format. Please upload ${acceptedFormats.toUpperCase()}.`);
       return;
     }
 
     setIsProcessing(true);
+    setIsOptimizing(contentType.startsWith('image/') && file.size >= 1.5 * 1024 * 1024);
+    setUploadProgress(0);
+    try {
+      const uploadFile = await optimizeImageForUpload(file, contentType);
+      setIsOptimizing(false);
+      const uploadContentType = uploadFile.type || contentType;
+      const safeName = uploadFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `application-documents/${type}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+      const fileRef = ref(storage, storagePath);
+      const uploadTask = uploadBytesResumable(fileRef, uploadFile, { contentType: uploadContentType });
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        let unsubscribe = () => {};
+        const finish = (callback: () => void) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeoutId);
+          unsubscribe();
+          callback();
+        };
+        const timeoutId = window.setTimeout(() => {
+          uploadTask.cancel();
+          finish(() => reject(new Error('Upload timed out after 2 minutes. Check your connection and try again.')));
+        }, 120000);
 
-    const reader = new FileReader();
+        unsubscribe = uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            setUploadProgress(
+              snapshot.totalBytes === 0
+                ? 100
+                : Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
+            );
+          },
+          (error) => finish(() => reject(error)),
+          () => finish(resolve)
+        );
+      });
+      const downloadUrl = await new Promise<string>((resolve, reject) => {
+        const timeoutId = window.setTimeout(() => {
+          reject(new Error('Upload finished, but document verification timed out. Try again.'));
+        }, 30000);
+        getDownloadURL(fileRef).then(
+          (url) => {
+            window.clearTimeout(timeoutId);
+            resolve(url);
+          },
+          (error) => {
+            window.clearTimeout(timeoutId);
+            reject(error);
+          }
+        );
+      });
 
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
       const newDoc: ApplicationDocument = {
         id: `doc-${type}-${Date.now()}`,
         type,
-        name: file.name,
-        url: '#',
-        size: formatFileSize(file.size),
+        name: uploadFile.name,
+        url: downloadUrl,
+        size: formatFileSize(uploadFile.size),
         uploaded_at: new Date().toISOString().split('T')[0],
-        file_type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/png'),
-        data_url: dataUrl,
+        file_type: uploadContentType,
+        data_url: downloadUrl,
+        storage_path: storagePath,
       };
 
       onDocumentChange(newDoc);
+    } catch (error) {
+      console.error('Failed to upload application document:', error);
+      const code = (error as { code?: string })?.code;
+      if (code === 'storage/unauthorized') {
+        setErrorMessage('Upload blocked by Firebase Storage rules. Publish the project storage.rules file and try again.');
+      } else if (error instanceof Error && error.message.startsWith('Upload timed out')) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('Failed to upload document. Check your connection and Firebase Storage configuration, then try again.');
+      }
+    } finally {
       setIsProcessing(false);
-    };
-
-    reader.onerror = () => {
-      setErrorMessage('Failed to read file. Please try again.');
-      setIsProcessing(false);
-    };
-
-    reader.readAsDataURL(file);
+      setIsOptimizing(false);
+      setUploadProgress(0);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (file) {
       processFile(file);
     }
@@ -176,7 +278,9 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            if (!isProcessing) fileInputRef.current?.click();
+          }}
           className={`relative cursor-pointer rounded-xl border-2 border-dashed p-4 text-center transition-all flex flex-col items-center justify-center space-y-2 ${
             isDragging
               ? 'border-[#C8102E] bg-red-50/60 scale-[1.01]'
@@ -201,8 +305,31 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
           <div>
             <p className="text-xs font-bold text-gray-800">
-              {isProcessing ? 'Processing File...' : isDragging ? 'Drop file right here!' : 'Click to Upload or Drag & Drop'}
+              {isOptimizing
+                ? 'Optimizing image...'
+                : isProcessing
+                  ? uploadProgress >= 100
+                    ? 'Finalizing document...'
+                    : `Uploading document... ${uploadProgress}%`
+                  : isDragging
+                    ? 'Drop file right here!'
+                    : 'Click to Upload or Drag & Drop'}
             </p>
+            {isProcessing && (
+              <div
+                className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200"
+                role="progressbar"
+                aria-label="Document upload progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={uploadProgress}
+              >
+                <div
+                  className="h-full bg-[#C8102E] transition-[width] duration-200"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
             <p className="text-[11px] text-gray-400 mt-0.5">
               PDF, JPG, PNG, WEBP (Up to {maxSizeMB}MB)
             </p>

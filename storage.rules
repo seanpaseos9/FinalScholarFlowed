@@ -1,0 +1,11 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /application-documents/{documentType}/{fileName} {
+      allow read: if true;
+      allow create, update: if documentType in ['com', 'itr', 'id', 'other']
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('application/pdf|image/(jpeg|png|webp)');
+    }
+  }
+}

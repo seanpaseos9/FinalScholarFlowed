@@ -6,7 +6,7 @@ import { Scholarship, ScholarshipCategory } from '../../types';
 interface ScholarshipModalProps {
   scholarshipToEdit?: Scholarship | null;
   onClose: () => void;
-  onSave: (scholarship: Scholarship) => void;
+  onSave: (scholarship: Scholarship) => Promise<void> | void;
 }
 
 export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
@@ -34,6 +34,7 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
   const [isRenewable, setIsRenewable] = useState<boolean>(scholarshipToEdit?.is_renewable ?? false);
   const [renewalDeadline, setRenewalDeadline] = useState(scholarshipToEdit?.renewal_deadline || '');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Keyboard accessibility: Escape key dismisses modal
   useEffect(() => {
@@ -114,7 +115,7 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
     setErrorMsg(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -217,8 +218,15 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
       max_approved_per_student: 1,
     };
 
-    onSave(schObj);
-    onClose();
+    setSaving(true);
+    try {
+      await onSave(schObj);
+      onClose();
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Failed to save scholarship. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -563,9 +571,10 @@ export const ScholarshipModal: React.FC<ScholarshipModalProps> = ({
             </button>
             <button
               type="submit"
+              disabled={saving}
               className="px-6 py-2 bg-slate-900 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
             >
-              Save Program
+              {saving ? 'Saving...' : 'Save Program'}
             </button>
           </div>
 

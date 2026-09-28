@@ -68,6 +68,7 @@ export interface ApplicationDocument {
   uploaded_at: string;
   file_type?: string;
   data_url?: string;
+  storage_path?: string;
 }
 
 export type ApplicationStatus =

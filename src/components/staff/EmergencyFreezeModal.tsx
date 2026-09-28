@@ -6,7 +6,7 @@ import { Scholarship, FreezePeriod } from '../../types';
 interface EmergencyFreezeModalProps {
   scholarships: Scholarship[];
   onClose: () => void;
-  onSaveFreeze: (newFreeze: FreezePeriod) => void;
+  onSaveFreeze: (newFreeze: FreezePeriod) => Promise<void> | void;
 }
 
 export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
@@ -22,6 +22,7 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
   const [endDate, setEndDate] = useState<string>('');
   const [dateError, setDateError] = useState<string>('');
   const [announcementNote, setAnnouncementNote] = useState<string>(defaultNote);
+  const [saving, setSaving] = useState(false);
 
   // Keyboard accessibility: Escape key dismisses modal
   useEffect(() => {
@@ -57,7 +58,7 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
       ? scholarships.some(s => s.is_frozen)
       : selectedScholarship?.is_frozen ?? false;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (actionType !== 'unfreeze') {
@@ -86,8 +87,15 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
       is_active: actionType === 'freeze',
     };
 
-    onSaveFreeze(freezeRecord);
-    onClose();
+    setSaving(true);
+    try {
+      await onSaveFreeze(freezeRecord);
+      onClose();
+    } catch (error) {
+      setDateError(error instanceof Error ? error.message : 'Failed to save this action. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -241,10 +249,10 @@ export const EmergencyFreezeModal: React.FC<EmergencyFreezeModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={actionType === 'unfreeze' && !isCurrentlyFrozen}
+              disabled={saving || (actionType === 'unfreeze' && !isCurrentlyFrozen)}
               className="px-5 py-2 bg-slate-900 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {actionType === 'unfreeze' ? 'Confirm Unfreeze' : 'Broadcast & Save Action'}
+              {saving ? 'Saving...' : actionType === 'unfreeze' ? 'Confirm Unfreeze' : 'Broadcast & Save Action'}
             </button>
           </div>
 
